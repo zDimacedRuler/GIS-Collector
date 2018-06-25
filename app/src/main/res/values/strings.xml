@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">GIS Collect</string>
+    <string name="mapbox_my_style_url">mapbox://styles/zdimacedruler/cjioira1h265y2sqw7dha92n5</string>
+    <string name="phoneNo">Phone Number…</string>
+    <string name="submit">Submit</string>
+    <string name="what_is_this_place">What is this place?</string>
+    <string name="this_place_is">This place is...</string>
+    <string name="cancel">cancel</string>
+    <string name="gps_msg">Enable GPS to collect data!!</string>
+    <string name="enable_gps">Turn on</string>
+</resources>
