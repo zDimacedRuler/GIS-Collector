@@ -8,20 +8,23 @@ import android.content.res.Configuration;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
-import android.support.design.widget.CoordinatorLayout;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import com.disarm.surakshit.collectgis.Modal.FileUploadModal;
 import com.disarm.surakshit.collectgis.Util.Constants;
 import com.disarm.surakshit.collectgis.Util.ConversionUtil;
 import com.disarm.surakshit.collectgis.Util.UploadJobService;
@@ -34,6 +37,17 @@ import com.firebase.jobdispatcher.Job;
 import com.firebase.jobdispatcher.Lifetime;
 import com.firebase.jobdispatcher.RetryStrategy;
 import com.firebase.jobdispatcher.Trigger;
+import com.github.pengrad.mapscaleview.MapScaleView;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.firestore.DocumentChange;
+import com.google.firebase.firestore.EventListener;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreException;
+import com.google.firebase.firestore.QuerySnapshot;
+import com.google.firebase.storage.FileDownloadTask;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
 import com.mapbox.android.core.location.LocationEngine;
 import com.mapbox.android.core.location.LocationEngineListener;
 import com.mapbox.android.core.location.LocationEnginePriority;
@@ -68,13 +82,14 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements LocationEngineListener {
+import javax.annotation.Nullable;
+
+public class MainActivity extends AppCompatActivity implements LocationEngineListener, MapboxMap.OnCameraIdleListener, MapboxMap.OnCameraMoveListener, MapboxMap.OnCameraMoveStartedListener {
     private MapView mapView;
     private FloatingActionButton addButton;
     private FloatingActionButton cancelButton;
     private FloatingActionButton undoButton;
     private int addFlag;
-    private CoordinatorLayout mainLayout;
     private ArrayList<Marker> markerList;
     private ArrayList<LatLng> polygonPoints;
     private BasePointCollection currentPolygon;
@@ -82,14 +97,19 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
     private String phoneNumber;
     private Double currentZoom;
     private HashMap<String, Boolean> allPlottedKml;
+    private HashMap<Polygon, String> polygonMessage;
+    private HashMap<Polyline, String> polylineMessage;
     private org.osmdroid.views.MapView mMapView;
-    private List<PolygonOptions> allPolygons = new ArrayList<>();
-    private List<MarkerOptions> allMarkers = new ArrayList<>();
-    private List<PolylineOptions> allPolyLines = new ArrayList<>();
     private FirebaseJobDispatcher dispatcher;
     private Boolean isJobInitialized;
     private LocationLayerPlugin locationLayerPlugin;
     private LocationEngine locationEngine;
+    private MapScaleView mapScaleView;
+    private MapboxMap globalMapboxMap;
+    private MapboxMap.OnPolygonClickListener polygonClickListener;
+    private MapboxMap.OnPolylineClickListener polylineClickListener;
+    private Toast toast;
+    private Boolean downloadSettings;
 
     private static final int BUTTON_ADD = 0;
     private static final int BUTTON_DRAW = 1;
@@ -106,11 +126,12 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         mapInit();
         setButton();
         isGPSEnabled();
-        showWorkingData();
+        refreshData();
         //schedule upload jobService
         dispatcher = new FirebaseJobDispatcher(new GooglePlayDriver(this));
         isJobInitialized = false;
         scheduleJobService();
+        getFireStoreData();
     }
 
     private void isGPSEnabled() {
@@ -137,9 +158,24 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
     }
 
     private void mapInit() {
+        polygonClickListener = new MapboxMap.OnPolygonClickListener() {
+            @Override
+            public void onPolygonClick(@NonNull Polygon polygon) {
+                if (polygonMessage.containsKey(polygon))
+                    showToastMessage(polygonMessage.get(polygon));
+            }
+        };
+        polylineClickListener = new MapboxMap.OnPolylineClickListener() {
+            @Override
+            public void onPolylineClick(@NonNull Polyline polyline) {
+                if (polylineMessage.containsKey(polyline))
+                    showToastMessage(polylineMessage.get(polyline));
+            }
+        };
         mapView.getMapAsync(new OnMapReadyCallback() {
             @Override
             public void onMapReady(MapboxMap mapboxMap) {
+                globalMapboxMap = mapboxMap;
                 mapboxMap.setCameraPosition(new CameraPosition.Builder()
                         .target(new LatLng(23.5477, 87.2931))
                         .zoom(currentZoom)
@@ -164,14 +200,27 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                 locationLayerPlugin.addOnLocationClickListener(new OnLocationLayerClickListener() {
                     @Override
                     public void onLocationLayerClick() {
-                        Snackbar.make(mainLayout, "My Location", Snackbar.LENGTH_SHORT).show();
+                        showToastMessage("My Location");
                     }
                 });
                 locationLayerPlugin.setCameraMode(CameraMode.NONE);
                 locationLayerPlugin.setRenderMode(RenderMode.COMPASS);
                 getLifecycle().addObserver(locationLayerPlugin);
+                mapboxMap.addOnCameraIdleListener(MainActivity.this);
+                mapboxMap.addOnCameraMoveListener(MainActivity.this);
+                mapboxMap.addOnCameraMoveStartedListener(MainActivity.this);
+                //clicks
+                mapboxMap.setOnPolygonClickListener(polygonClickListener);
+                mapboxMap.setOnPolylineClickListener(polylineClickListener);
             }
         });
+    }
+
+    private void showToastMessage(String s) {
+        if (toast != null)
+            toast.cancel();
+        toast = Toast.makeText(this, s, Toast.LENGTH_SHORT);
+        toast.show();
     }
 
     private void setButton() {
@@ -208,7 +257,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                             }
                         });
                     } else {
-                        Snackbar.make(mainLayout, "No Marker to remove", Snackbar.LENGTH_SHORT).show();
+                        showToastMessage("Add Marker to remove");
                     }
                 } else if (addFlag == BUTTON_DONE) {
                     addButton.setImageResource(R.drawable.ic_draw_white_24dp);
@@ -245,7 +294,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                 //for drawing
                 else if (addFlag == BUTTON_DRAW) {
                     if (polygonPoints.size() == 0) {
-                        Snackbar.make(mainLayout, "No Marker to draw", Snackbar.LENGTH_SHORT).show();
+                        showToastMessage("Add Marker to draw");
                         return;
                     }
                     addButton.setImageResource(R.drawable.ic_done_white_24dp);
@@ -323,7 +372,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                 File tmpFile = Environment.getExternalStoragePublicDirectory(Constants.CMS_TEMP_KML + file_name);
                 kml.saveAsKML(file);
                 kml.saveAsKML(tmpFile);
-                showWorkingData();
+                refreshData();
                 doneButtonHelper();
                 dialog.dismiss();
             }
@@ -388,10 +437,28 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         addFlag = BUTTON_ADD;
     }
 
-    private void showWorkingData() {
+    private void refreshData() {
+        Handler handler = new Handler();
+        if (globalMapboxMap != null) {
+            showWorkingData();
+        } else {
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    refreshData();
+                }
+            }, 1000);
+        }
+    }
 
+    private void showWorkingData() {
         File working = Environment.getExternalStoragePublicDirectory(Constants.CMS_WORKING);
-        File[] allFiles = working.listFiles();
+        File downloaded = Environment.getExternalStoragePublicDirectory(Constants.CMS_DOWNLOADED_KML);
+        File[] allFiles;
+        if (!downloadSettings)
+            allFiles = working.listFiles();
+        else
+            allFiles = downloaded.listFiles();
         for (File file : allFiles) {
             if (allPlottedKml.containsKey(file.getName()))
                 continue;
@@ -407,55 +474,46 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                         List<LatLng> polyPoints = ConversionUtil.getLatLngList(((org.osmdroid.views.overlay.Polygon) kmlOverlay.getItems().get(i)).getPoints());
                         String snippet = ((org.osmdroid.views.overlay.Polygon) kmlOverlay.getItems().get(i)).getSnippet();
                         if (polyPoints.size() > 3) {
-                            allPolygons.add(new PolygonOptions().addAll(polyPoints)
+                            PolygonOptions polygonOptions = new PolygonOptions().addAll(polyPoints)
                                     .alpha((float) 0.5)
-                                    .fillColor(R.color.transparent));
+                                    .fillColor(R.color.transparent);
+                            Polygon polygon = globalMapboxMap.addPolygon(polygonOptions);
+                            polygonMessage.put(polygon, snippet);
                         } else if (polyPoints.size() == 3) {
-                            allPolyLines.add(new PolylineOptions().add(polyPoints.get(0))
+                            PolylineOptions polylineOptions = new PolylineOptions().add(polyPoints.get(0))
                                     .add(polyPoints.get(1))
                                     .color(R.color.black)
-                                    .width(3));
+                                    .width(3);
+                            Polyline polyline = globalMapboxMap.addPolyline(polylineOptions);
+                            polylineMessage.put(polyline, snippet);
                         }
                     } else if (kmlOverlay.getItems().get(i) instanceof org.osmdroid.views.overlay.Marker) {
                         LatLng point = ConversionUtil.getLatLng(((org.osmdroid.views.overlay.Marker) kmlOverlay.getItems().get(i)).getPosition());
                         String snippet = ((org.osmdroid.views.overlay.Marker) kmlOverlay.getItems().get(i)).getSnippet();
-                        allMarkers.add(new MarkerOptions().position(point).setSnippet(snippet));
+                        MarkerOptions markerOptions = new MarkerOptions().position(point).setSnippet(snippet);
+                        globalMapboxMap.addMarker(markerOptions);
                     }
                 }
             }
         }
-        mapView.getMapAsync(new OnMapReadyCallback() {
-            @Override
-            public void onMapReady(MapboxMap mapboxMap) {
-                if (!allPolygons.isEmpty())
-                    mapboxMap.addPolygons(allPolygons);
-                if (!allPolyLines.isEmpty())
-                    mapboxMap.addPolylines(allPolyLines);
-                if (!allMarkers.isEmpty())
-                    mapboxMap.addMarkers(allMarkers);
-                allPolygons.clear();
-                allPolyLines.clear();
-                allMarkers.clear();
-            }
-        });
     }
 
     private void init() {
         mapView = findViewById(R.id.mapView);
-        mainLayout = findViewById(R.id.main_layout);
         addButton = findViewById(R.id.main_add_fab);
         cancelButton = findViewById(R.id.main_cancel_fab);
         undoButton = findViewById(R.id.main_undo_fab);
+        mapScaleView = findViewById(R.id.scaleView);
         markerList = new ArrayList<>();
         polygonPoints = new ArrayList<>();
         allPlottedKml = new HashMap<>();
-        allPolygons = new ArrayList<>();
-        allMarkers = new ArrayList<>();
-        allPolyLines = new ArrayList<>();
+        polygonMessage = new HashMap<>();
+        polylineMessage = new HashMap<>();
         currentPolygon = null;
         currentZoom = 15.0;
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
         phoneNumber = preferences.getString(Constants.PHONE_NO, "");
+        downloadSettings = preferences.getBoolean(Constants.KEY_PREF_DOWNLOADED_FILES, false);
         mMapView = new org.osmdroid.views.MapView(MainActivity.this);
     }
 
@@ -496,8 +554,8 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                         break;
                     default:
                         MLocation.subscribe(this);
-                        if (locationEngine.isConnected())
-                            locationEngine.activate();
+//                        if (locationEngine.isConnected())
+//                            locationEngine.activate();
                         Toast.makeText(this, "GPS is enabled.", Toast.LENGTH_LONG).show();
                         break;
                 }
@@ -592,5 +650,96 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                         new LatLng(location.getLatitude(), location.getLongitude()), mapboxMap.getCameraPosition().zoom));
             }
         });
+    }
+
+    @Override
+    public void onCameraIdle() {
+        mapView.getMapAsync(new OnMapReadyCallback() {
+            @Override
+            public void onMapReady(MapboxMap mapboxMap) {
+                CameraPosition cameraPosition = mapboxMap.getCameraPosition();
+                mapScaleView.update((float) cameraPosition.zoom, cameraPosition.target.getLatitude());
+            }
+        });
+    }
+
+    @Override
+    public void onCameraMove() {
+        mapView.getMapAsync(new OnMapReadyCallback() {
+            @Override
+            public void onMapReady(MapboxMap mapboxMap) {
+                CameraPosition cameraPosition = mapboxMap.getCameraPosition();
+                mapScaleView.update((float) cameraPosition.zoom, cameraPosition.target.getLatitude());
+            }
+        });
+    }
+
+    @Override
+    public void onCameraMoveStarted(int reason) {
+        mapView.getMapAsync(new OnMapReadyCallback() {
+            @Override
+            public void onMapReady(MapboxMap mapboxMap) {
+                CameraPosition cameraPosition = mapboxMap.getCameraPosition();
+                mapScaleView.update((float) cameraPosition.zoom, cameraPosition.target.getLatitude());
+            }
+        });
+    }
+
+    private void getFireStoreData() {
+        FirebaseFirestore firestore = FirebaseFirestore.getInstance();
+        firestore.collection(UploadJobService.FILES_CONST).addSnapshotListener(new EventListener<QuerySnapshot>() {
+            @Override
+            public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
+                if (e != null) {
+                    Log.w("Download ", "Listen failed.", e);
+                    return;
+                }
+                assert queryDocumentSnapshots != null;
+                for (DocumentChange snapshot : queryDocumentSnapshots.getDocumentChanges()) {
+                    if (snapshot.getType() == DocumentChange.Type.ADDED) {
+                        FileUploadModal modal = snapshot.getDocument().toObject(FileUploadModal.class);
+                        downloadFile(modal.getFileName());
+                    }
+                }
+            }
+        });
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.activity_main_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.settings:
+                Intent intent = new Intent(this, SettingsActivity.class);
+                startActivity(intent);
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+
+    private void downloadFile(String fileName) {
+        File file = Environment.getExternalStoragePublicDirectory(Constants.CMS_DOWNLOADED_KML + fileName);
+        StorageReference storage = FirebaseStorage.getInstance().getReference();
+        StorageReference fileReference = storage.child(UploadJobService.FILES_CONST).child(fileName);
+        if (!file.exists()) {
+            fileReference.getFile(file).addOnSuccessListener(new OnSuccessListener<FileDownloadTask.TaskSnapshot>() {
+                @Override
+                public void onSuccess(FileDownloadTask.TaskSnapshot taskSnapshot) {
+                    Log.d("Download", "file downloaded");
+                }
+            }).addOnFailureListener(new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception e) {
+                    Log.d("Download", "download failed");
+                }
+            });
+        }
     }
 }

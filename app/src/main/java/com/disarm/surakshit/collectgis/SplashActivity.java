@@ -27,6 +27,7 @@ public class SplashActivity extends AppCompatActivity {
     public File cmsFolder = Environment.getExternalStoragePublicDirectory(Constants.CMS_DIRECTORY);
     public File workingFolder = Environment.getExternalStoragePublicDirectory(Constants.CMS_WORKING);
     public File tempKMLFolder = Environment.getExternalStoragePublicDirectory(Constants.CMS_TEMP_KML);
+    public File downloadedFolder = Environment.getExternalStoragePublicDirectory(Constants.CMS_DOWNLOADED_KML);
 
     private static final String[] REQUIRED_PERMISSIONS = new String[]{
             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -44,6 +45,7 @@ public class SplashActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         creatingFolder();
+//        PreferenceManager.setDefaultValues(this, R.xml.preference, false);
         if (!hasPermissions(this, REQUIRED_PERMISSIONS)) {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_REQUIRED_PERMISSIONS);
         }
@@ -86,6 +88,8 @@ public class SplashActivity extends AppCompatActivity {
             workingFolder.mkdir();
         if (!tempKMLFolder.exists())
             tempKMLFolder.mkdir();
+        if (!downloadedFolder.exists())
+            downloadedFolder.mkdir();
     }
 
     private boolean isNumberPresent() {

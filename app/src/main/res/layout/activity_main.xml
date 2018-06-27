@@ -8,15 +8,30 @@
     android:layout_height="match_parent"
     tools:context="com.disarm.surakshit.collectgis.MainActivity">
 
-    <com.mapbox.mapboxsdk.maps.MapView
-        android:id="@+id/mapView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        mapbox:mapbox_styleUrl="@string/mapbox_my_style_url" />
 
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <com.mapbox.mapboxsdk.maps.MapView
+                android:id="@+id/mapView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                mapbox:mapbox_styleUrl="@string/mapbox_my_style_url" />
+
+            <com.github.pengrad.mapscaleview.MapScaleView
+                android:id="@+id/scaleView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_margin="4dp"
+                app:scale_strokeWidth="2dp"
+                app:scale_textSize="16sp" />
+        </FrameLayout>
 
         <android.support.design.widget.FloatingActionButton
             android:id="@+id/main_add_fab"
@@ -27,6 +42,7 @@
             android:layout_alignParentRight="true"
             android:layout_margin="5dp"
             app:elevation="6dp"
+            app:fabSize="normal"
             app:layout_anchorGravity="bottom|right"
             app:pressedTranslationZ="12dp"
             app:rippleColor="@color/transparent"
@@ -60,7 +76,7 @@
             android:layout_margin="5dp"
             android:visibility="gone"
             app:elevation="6dp"
-            app:fabSize="mini"
+            app:fabSize="normal"
             app:layout_anchorGravity="bottom|right"
             app:pressedTranslationZ="12dp"
             app:rippleColor="@color/transparent"
