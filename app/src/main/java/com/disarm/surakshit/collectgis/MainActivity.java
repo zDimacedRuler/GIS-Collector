@@ -24,7 +24,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import com.disarm.surakshit.collectgis.Modal.FileUploadModal;
+import com.disarm.surakshit.collectgis.Model.FileUploadModel;
 import com.disarm.surakshit.collectgis.Util.Constants;
 import com.disarm.surakshit.collectgis.Util.ConversionUtil;
 import com.disarm.surakshit.collectgis.Util.UploadJobService;
@@ -697,7 +697,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                 assert queryDocumentSnapshots != null;
                 for (DocumentChange snapshot : queryDocumentSnapshots.getDocumentChanges()) {
                     if (snapshot.getType() == DocumentChange.Type.ADDED) {
-                        FileUploadModal modal = snapshot.getDocument().toObject(FileUploadModal.class);
+                        FileUploadModel modal = snapshot.getDocument().toObject(FileUploadModel.class);
                         downloadFile(modal.getFileName());
                     }
                 }
@@ -719,6 +719,9 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                 Intent intent = new Intent(this, SettingsActivity.class);
                 startActivity(intent);
                 return true;
+            case R.id.merge_gis:
+                showToastMessage("Merging GIS..");
+                GISMerger.mergeGIS(getApplicationContext());
             default:
                 return super.onOptionsItemSelected(item);
         }

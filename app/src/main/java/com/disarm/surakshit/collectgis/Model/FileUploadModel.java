@@ -1,17 +1,17 @@
-package com.disarm.surakshit.collectgis.Modal;
+package com.disarm.surakshit.collectgis.Model;
 
 /**
  * Created by AmanKumar on 6/26/2018.
  */
 
-public class FileUploadModal {
+public class FileUploadModel {
     private String name;
     private String fileName;
 
-    public FileUploadModal() {
+    public FileUploadModel() {
     }
 
-    public FileUploadModal(String name, String fileName) {
+    public FileUploadModel(String name, String fileName) {
         this.name = name;
         this.fileName = fileName;
     }
@@ -32,3 +32,5 @@ public class FileUploadModal {
         this.fileName = fileName;
     }
 }
+
+

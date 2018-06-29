@@ -7,7 +7,7 @@ import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
-import com.disarm.surakshit.collectgis.Modal.FileUploadModal;
+import com.disarm.surakshit.collectgis.Model.FileUploadModel;
 import com.firebase.jobdispatcher.JobParameters;
 import com.firebase.jobdispatcher.JobService;
 import com.google.android.gms.tasks.OnFailureListener;
@@ -76,7 +76,7 @@ public class UploadJobService extends JobService {
                 public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
                     Log.d("Upload Test", "Upload Successful");
                     //update in firestore
-                    FileUploadModal fileUploadModal = new FileUploadModal(phoneNumber, file_name);
+                    FileUploadModel fileUploadModal = new FileUploadModel(phoneNumber, file_name);
                     firestore.collection(FILES_CONST).add(fileUploadModal);
                     //delete saved file from tmpKML
                     File tempFile = Environment.getExternalStoragePublicDirectory(Constants.CMS_TEMP_KML + file_name);
