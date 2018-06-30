@@ -110,6 +110,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
     private MapboxMap.OnPolylineClickListener polylineClickListener;
     private Toast toast;
     private Boolean downloadSettings;
+    private Boolean mergedSettings;
 
     private static final int BUTTON_ADD = 0;
     private static final int BUTTON_DRAW = 1;
@@ -454,11 +455,14 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
     private void showWorkingData() {
         File working = Environment.getExternalStoragePublicDirectory(Constants.CMS_WORKING);
         File downloaded = Environment.getExternalStoragePublicDirectory(Constants.CMS_DOWNLOADED_KML);
+        File merged = Environment.getExternalStoragePublicDirectory(Constants.CMS_MERGED_KML);
         File[] allFiles;
-        if (!downloadSettings)
-            allFiles = working.listFiles();
-        else
+        if (mergedSettings && merged.exists())
+            allFiles = merged.listFiles();
+        else if (downloadSettings)
             allFiles = downloaded.listFiles();
+        else
+            allFiles = working.listFiles();
         for (File file : allFiles) {
             if (allPlottedKml.containsKey(file.getName()))
                 continue;
@@ -514,6 +518,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
         phoneNumber = preferences.getString(Constants.PHONE_NO, "");
         downloadSettings = preferences.getBoolean(Constants.KEY_PREF_DOWNLOADED_FILES, false);
+        mergedSettings = preferences.getBoolean(Constants.KEY_PREF_MERGED_FILES, false);
         mMapView = new org.osmdroid.views.MapView(MainActivity.this);
     }
 

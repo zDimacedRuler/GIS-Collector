@@ -24,13 +24,14 @@ public class KmlObject {
     public KmlObject() {
     }
 
-    public KmlObject(int zoom, int type, List<LatLng> points, String message, String source, String tileName) {
+    public KmlObject(int zoom, int type, List<LatLng> points, String message, String source, String tileName, File file) {
         this.zoom = zoom;
         this.type = type;
         this.points = points;
         this.message = message;
         this.source = source;
         this.tileName = tileName;
+        this.file = file;
     }
 
     public File getFile() {
