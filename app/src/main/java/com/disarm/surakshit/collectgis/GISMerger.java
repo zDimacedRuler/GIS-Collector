@@ -50,7 +50,7 @@ public class GISMerger {
                     if (kmlOverlay.getItems().get(i) instanceof org.osmdroid.views.overlay.Polygon) {
                         List<LatLng> polyPoints = ConversionUtil.getLatLngList(((org.osmdroid.views.overlay.Polygon) kmlOverlay.getItems().get(i)).getPoints());
                         String message = ((org.osmdroid.views.overlay.Polygon) kmlOverlay.getItems().get(i)).getSnippet();
-                        KmlObject kmlObject = getKMLObject(sourceid, message, polyPoints, KmlObject.KMLOBJECT_TYPE_POLYGON);
+                        KmlObject kmlObject = getKMLObject(sourceid, message, polyPoints, KmlObject.KMLOBJECT_TYPE_POLYGON,kmlFile);
                         kmlObjects.add(kmlObject);
 
                     } else if (kmlOverlay.getItems().get(i) instanceof org.osmdroid.views.overlay.Marker) {
@@ -61,8 +61,6 @@ public class GISMerger {
             }
         }
 
-//        for (KmlObject object : kmlObjects)
-//            Log.d("Object Tile Name", object.getTileName() + object.getMessage());
 
         //dividing kmlObjects into buckets of same tile name
         for (KmlObject object : kmlObjects) {
@@ -72,9 +70,7 @@ public class GISMerger {
             sameTileObjects.get(object.getTileName()).add(object);
         }
 
-//        for (String tileName : sameTileObjects.keySet()) {
-//            Log.d("Tile NAme", tileName + ":" + sameTileObjects.get(tileName).size());
-//        }
+
 
         //comparing kmlObject of each bucket
         for (String tileName : sameTileObjects.keySet()) {
@@ -116,16 +112,17 @@ public class GISMerger {
                 hDistance2 = mind;
         }
         if (hDistance1 > hDistance2)
-            return hDistance2;
-        return hDistance1;
+            return hDistance1;
+        return hDistance2;
     }
 
-    public static KmlObject getKMLObject(String sourceId, String message, List<LatLng> polyPoints, int type) {
+    public static KmlObject getKMLObject(String sourceId, String message, List<LatLng> polyPoints, int type, File kmlFile) {
         KmlObject object = new KmlObject();
         object.setMessage(message);
         object.setPoints(polyPoints);
         object.setSource(sourceId);
         object.setType(type);
+        object.setFile(kmlFile);
         object = addTileNameAndLevel(object);
         return object;
     }
