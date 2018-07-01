@@ -2,6 +2,7 @@ package com.disarm.surakshit.collectgis.Model;
 
 import com.mapbox.mapboxsdk.geometry.LatLng;
 
+import java.io.File;
 import java.util.List;
 
 /**
@@ -15,6 +16,7 @@ public class KmlObject {
     private List<LatLng> points;
     private String message;
     private String source;
+    private File file;
 
     public static final int KMLOBJECT_TYPE_POLYGON = 0;
     public static final int KMLOBJECT_TYPE_MARKER = 1;
@@ -22,13 +24,22 @@ public class KmlObject {
     public KmlObject() {
     }
 
-    public KmlObject(int zoom, int type, List<LatLng> points, String message, String source, String tileName) {
+    public KmlObject(int zoom, int type, List<LatLng> points, String message, String source, String tileName, File file) {
         this.zoom = zoom;
         this.type = type;
         this.points = points;
         this.message = message;
         this.source = source;
         this.tileName = tileName;
+        this.file = file;
+    }
+
+    public File getFile() {
+        return file;
+    }
+
+    public void setFile(File file) {
+        this.file = file;
     }
 
     @Override

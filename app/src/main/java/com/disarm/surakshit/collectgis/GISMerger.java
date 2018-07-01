@@ -5,19 +5,25 @@ import android.os.Environment;
 import android.util.Log;
 
 import com.disarm.surakshit.collectgis.Model.KmlObject;
-import com.disarm.surakshit.collectgis.SoftTfidf.Jaro;
 import com.disarm.surakshit.collectgis.SoftTfidf.JaroWinklerTFIDF;
 import com.disarm.surakshit.collectgis.Util.Constants;
 import com.disarm.surakshit.collectgis.Util.ConversionUtil;
+import com.disarm.surakshit.collectgis.Util.MergeDecisionPolicy;
+import com.disarm.surakshit.collectgis.Util.MergePolicy;
 import com.mapbox.mapboxsdk.geometry.LatLng;
+import com.snatik.storage.Storage;
 
 import org.osmdroid.bonuspack.kml.KmlDocument;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.FolderOverlay;
 
 import java.io.File;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +40,7 @@ public class GISMerger {
 
     static void mergeGIS(Context context) {
         mapView = new MapView(context);
+        Storage storage = new Storage(context);
         kmlObjects = new ArrayList<>();
         sameTileObjects = new HashMap<>();
         File file = Environment.getExternalStoragePublicDirectory(Constants.CMS_DOWNLOADED_KML);
@@ -50,7 +57,7 @@ public class GISMerger {
                     if (kmlOverlay.getItems().get(i) instanceof org.osmdroid.views.overlay.Polygon) {
                         List<LatLng> polyPoints = ConversionUtil.getLatLngList(((org.osmdroid.views.overlay.Polygon) kmlOverlay.getItems().get(i)).getPoints());
                         String message = ((org.osmdroid.views.overlay.Polygon) kmlOverlay.getItems().get(i)).getSnippet();
-                        KmlObject kmlObject = getKMLObject(sourceid, message, polyPoints, KmlObject.KMLOBJECT_TYPE_POLYGON);
+                        KmlObject kmlObject = getKMLObject(sourceid, message, polyPoints, KmlObject.KMLOBJECT_TYPE_POLYGON, kmlFile);
                         kmlObjects.add(kmlObject);
 
                     } else if (kmlOverlay.getItems().get(i) instanceof org.osmdroid.views.overlay.Marker) {
@@ -61,8 +68,6 @@ public class GISMerger {
             }
         }
 
-//        for (KmlObject object : kmlObjects)
-//            Log.d("Object Tile Name", object.getTileName() + object.getMessage());
 
         //dividing kmlObjects into buckets of same tile name
         for (KmlObject object : kmlObjects) {
@@ -72,25 +77,79 @@ public class GISMerger {
             sameTileObjects.get(object.getTileName()).add(object);
         }
 
-//        for (String tileName : sameTileObjects.keySet()) {
-//            Log.d("Tile NAme", tileName + ":" + sameTileObjects.get(tileName).size());
-//        }
+//        // use single bucket for all objects
+//        sameTileObjects.clear();
+//        sameTileObjects.put("singleTile", kmlObjects);
 
+        //delete previous merged files
+        File mergeDirectory = Environment.getExternalStoragePublicDirectory(Constants.CMS_MERGED_KML);
+        storage.deleteDirectory(mergeDirectory.getAbsolutePath());
+
+        //recording time just before merging
+        long tStart = System.currentTimeMillis();
         //comparing kmlObject of each bucket
         for (String tileName : sameTileObjects.keySet()) {
             List<KmlObject> bucket = sameTileObjects.get(tileName);
+            List<KmlObject> mergedBucket = new ArrayList<>();
             Log.d("--*-----------", Arrays.toString(bucket.toArray()));
-            for (int i = 0; i < bucket.size(); i++) {
-                for (int j = i + 1; j < bucket.size(); j++) {
-                    Log.d("Msg", bucket.get(i).getMessage() + " vs " + bucket.get(j).getMessage());
-                    Log.d("Distance", "HouseD:" + housedorffDistance(bucket.get(i), bucket.get(j)));
-                    Log.d("Tfidf", "Score:" + new JaroWinklerTFIDF().score(bucket.get(i).getMessage(), bucket.get(j).getMessage()));
 
+
+            while (bucket.size() > 0) {
+                boolean merged = false;
+                KmlObject X = bucket.get(0);
+                bucket.remove(0);
+                List<KmlObject> newBucket = new ArrayList<>();
+                for (int i = 0; i < bucket.size(); i++) {
+                    double tfidfScore = new JaroWinklerTFIDF().score(X.getMessage(), bucket.get(i).getMessage());
+                    double housDroff = housedorffDistance(X, bucket.get(i));
+                    MergeDecisionPolicy mergeDecisionPolicy = new MergeDecisionPolicy(MergeDecisionPolicy.DISTANCE_AND_TFIDF_THRESHOLD_POLICY);
+                    boolean toMerge = mergeDecisionPolicy.mergeDecider(tfidfScore, housDroff);
+                    if (toMerge) {
+                        Log.d("Merging", X.getMessage() + " vs " + bucket.get(i).getMessage());
+                        MergePolicy mergePolicy = new MergePolicy(MergePolicy.CONVEX_HULL);
+                        List<LatLng> mergedPoints = mergePolicy.mergeKmlObjects(X, bucket.get(i));
+                        String mergedMessage = X.getMessage() + " , " + bucket.get(i).getMessage();
+                        String mergedSource = X.getSource() + " , " + bucket.get(i).getMessage();
+                        KmlObject mergeKmlObject = new KmlObject(bucket.get(i).getZoom()
+                                , bucket.get(i).getType()
+                                , mergedPoints
+                                , mergedMessage
+                                , mergedSource
+                                , tileName
+                                , null);
+                        X = mergeKmlObject;
+                        merged = true;
+                    } else {
+                        newBucket.add(bucket.get(i));
+                    }
                 }
+                if (merged)
+                    mergedBucket.add(X);
+                ListCopy(bucket, newBucket);
             }
+            saveKmlObjectInFile(mergedBucket);
         }
-
+        //recording time after merging
+        long tEnd = System.currentTimeMillis();
+        long tDelta = tEnd - tStart;
+        double elapsedSeconds = tDelta / 1000.0;
+        Log.d("Time", "T in seconds:" + elapsedSeconds);
     }
+
+    private static void ListCopy(List<KmlObject> dest, List<KmlObject> source) {
+        dest.clear();
+        for (KmlObject obj : source) {
+            dest.add(obj);
+        }
+    }
+
+    private static void saveKmlObjectInFile(List<KmlObject> newBucket) {
+        for (KmlObject object : newBucket) {
+            File mergedKmlFile = saveKMlInFile(object);
+            object.setFile(mergedKmlFile);
+        }
+    }
+
 
     public static double housedorffDistance(KmlObject object1, KmlObject object2) {
         double hDistance1, hDistance2;
@@ -116,16 +175,17 @@ public class GISMerger {
                 hDistance2 = mind;
         }
         if (hDistance1 > hDistance2)
-            return hDistance2;
-        return hDistance1;
+            return hDistance1;
+        return hDistance2;
     }
 
-    public static KmlObject getKMLObject(String sourceId, String message, List<LatLng> polyPoints, int type) {
+    public static KmlObject getKMLObject(String sourceId, String message, List<LatLng> polyPoints, int type, File kmlFile) {
         KmlObject object = new KmlObject();
         object.setMessage(message);
         object.setPoints(polyPoints);
         object.setSource(sourceId);
         object.setType(type);
+        object.setFile(kmlFile);
         object = addTileNameAndLevel(object);
         return object;
     }
@@ -217,5 +277,23 @@ public class GISMerger {
         distance = Math.pow(distance, 2) + Math.pow(height, 2);
 
         return Math.sqrt(distance);
+    }
+
+    private static File saveKMlInFile(KmlObject kmlObject) {
+        String file_name = "TXT_50_data_" +
+                kmlObject.getSource() +
+                "_" + kmlObject.hashCode() + "_"
+                + ".kml";
+        KmlDocument kml = new KmlDocument();
+        org.osmdroid.views.overlay.Polygon polygon = new org.osmdroid.views.overlay.Polygon();
+        polygon.setPoints(ConversionUtil.getGeoPointList(kmlObject.getPoints()));
+        polygon.setSnippet(kmlObject.getMessage());
+        kml.mKmlRoot.addOverlay(polygon, kml);
+        File mergeDirectory = Environment.getExternalStoragePublicDirectory(Constants.CMS_MERGED_KML);
+        File mergeFile = Environment.getExternalStoragePublicDirectory(Constants.CMS_MERGED_KML + file_name);
+        if (!mergeDirectory.exists())
+            mergeDirectory.mkdir();
+        kml.saveAsKML(mergeFile);
+        return mergeFile;
     }
 }

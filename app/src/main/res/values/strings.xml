@@ -11,6 +11,64 @@
     <string name="switch_title">Show Downloaded Kml</string>
     <string name="switch_summary">Show and download online KML files</string>
 
-    <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string-array name="categories">
+        <item>Hall Of Residence</item>
+        <item>Departments</item>
+        <item>Place To Eat</item>
+        <item>Landmarks</item>
+        <item>Main POI</item>
+    </string-array>
+
+    <string-array name="hall_of_residence">
+        <item>Hall 1:Netaji Subhas Chandra Hall of Residence</item>
+        <item>Hall 2:JC Bose Hall of Residence</item>
+        <item>Hall 3:Tagore Hall of Residence</item>
+        <item>Hall 4:CV Raman Hall of Residence</item>
+        <item>Hall 5:Vivekananda Hall of Residence</item>
+        <item>Hall 6:Shri Aurobindo Hall of Residence</item>
+        <item>Hall 7:Sister Nivedita Hall of Residence</item>
+        <item>Hall 8:Preetilata Hall of Residence</item>
+        <item>Hall 9:Satyendra Nath Hall of Residence</item>
+        <item>Hall 10:Mother Teresa Hall of Residence</item>
+        <item>Hall 11:Meghnad Saha Hall of Residence</item>
+        <item>Hall 12:International Hostel</item>
+    </string-array>
+
+    <string-array name="department">
+        <item>Math Department</item>
+        <item>Chemistry Department</item>
+        <item>CSE Department</item>
+        <item>ECE Department</item>
+        <item>BioTech Department</item>
+    </string-array>
+
+    <string-array name="place_to_eat">
+        <item>Wonder Cafe</item>
+        <item>Cafeteria:Hall 5 Canteen</item>
+        <item>Techno Shop</item>
+        <item>Nescafe</item>
+        <item>Chandu's Tea Stall</item>
+    </string-array>
+
+    <string-array name="landmarks">
+        <item>Nit Main Gate</item>
+        <item>Water Tank near Hall9</item>
+        <item>Duck pond</item>
+        <item>High Voltage Laboratory</item>
+        <item>Power Station near Hall9</item>
+    </string-array>
+
+    <string-array name="main_poi">
+        <item>Administrative Block</item>
+        <item>Main Academic Building</item>
+        <item>New Academic Building</item>
+        <item>Central Library</item>
+        <item>Oval Playground</item>
+        <item>Lords Playground</item>
+        <item>Students Activity Centre</item>
+        <item>Health Center</item>
+        <item>Workshop Complex near Hall6</item>
+        <item>Duragpur RE College Model School</item>
+        <item>Core Department Laboratory</item>
+    </string-array>
 </resources>
