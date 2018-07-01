@@ -12,4 +12,10 @@
         android:key="merged_files"
         android:summary="Show merged KML files"
         android:title="Show Merged Kml" />
+
+    <android.support.v7.preference.SwitchPreferenceCompat
+        android:defaultValue="false"
+        android:key="satellite_layer"
+        android:summary="Show satellite layer in map"
+        android:title="Satellite Layer" />
 </PreferenceScreen>

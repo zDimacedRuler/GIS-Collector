@@ -77,11 +77,16 @@ public class GISMerger {
             sameTileObjects.get(object.getTileName()).add(object);
         }
 
+//        // use single bucket for all objects
+//        sameTileObjects.clear();
+//        sameTileObjects.put("singleTile", kmlObjects);
+
         //delete previous merged files
         File mergeDirectory = Environment.getExternalStoragePublicDirectory(Constants.CMS_MERGED_KML);
         storage.deleteDirectory(mergeDirectory.getAbsolutePath());
 
-
+        //recording time just before merging
+        long tStart = System.currentTimeMillis();
         //comparing kmlObject of each bucket
         for (String tileName : sameTileObjects.keySet()) {
             List<KmlObject> bucket = sameTileObjects.get(tileName);
@@ -124,8 +129,11 @@ public class GISMerger {
             }
             saveKmlObjectInFile(mergedBucket);
         }
-
-
+        //recording time after merging
+        long tEnd = System.currentTimeMillis();
+        long tDelta = tEnd - tStart;
+        double elapsedSeconds = tDelta / 1000.0;
+        Log.d("Time", "T in seconds:" + elapsedSeconds);
     }
 
     private static void ListCopy(List<KmlObject> dest, List<KmlObject> source) {

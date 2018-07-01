@@ -31,7 +31,7 @@ public class MergeDecisionPolicy {
                     return true;
                 return false;
             case DISTANCE_AND_TFIDF_THRESHOLD_POLICY:
-                if (housDroff <= 30 && tfidfScore >= .45)
+                if (housDroff <= 50 && tfidfScore >= .30)
                     return true;
                 return false;
             default:

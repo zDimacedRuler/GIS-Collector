@@ -5,6 +5,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
+import android.content.res.Resources;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Environment;
@@ -109,8 +110,10 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
     private MapboxMap.OnPolygonClickListener polygonClickListener;
     private MapboxMap.OnPolylineClickListener polylineClickListener;
     private Toast toast;
+    private String mapUrl;
     private Boolean downloadSettings;
     private Boolean mergedSettings;
+    private Boolean satelliteSettings;
 
     private static final int BUTTON_ADD = 0;
     private static final int BUTTON_DRAW = 1;
@@ -123,6 +126,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         init();
+        setMapUrl();
         mapView.onCreate(savedInstanceState);
         mapInit();
         setButton();
@@ -133,6 +137,13 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         isJobInitialized = false;
         scheduleJobService();
         getFireStoreData();
+    }
+
+    private void setMapUrl() {
+        if (satelliteSettings)
+            mapUrl = getString(R.string.mapbox_style_satellite);
+        else
+            mapUrl = getString(R.string.mapbox_my_style_url);
     }
 
     private void isGPSEnabled() {
@@ -177,6 +188,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
             @Override
             public void onMapReady(MapboxMap mapboxMap) {
                 globalMapboxMap = mapboxMap;
+                mapboxMap.setStyleUrl(mapUrl);
                 mapboxMap.setCameraPosition(new CameraPosition.Builder()
                         .target(new LatLng(23.5477, 87.2931))
                         .zoom(currentZoom)
@@ -519,6 +531,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         phoneNumber = preferences.getString(Constants.PHONE_NO, "");
         downloadSettings = preferences.getBoolean(Constants.KEY_PREF_DOWNLOADED_FILES, false);
         mergedSettings = preferences.getBoolean(Constants.KEY_PREF_MERGED_FILES, false);
+        satelliteSettings = preferences.getBoolean(Constants.KEY_PREF_SATELLITE_LAYER, false);
         mMapView = new org.osmdroid.views.MapView(MainActivity.this);
     }
 
@@ -727,6 +740,11 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
             case R.id.merge_gis:
                 showToastMessage("Merging GIS..");
                 GISMerger.mergeGIS(getApplicationContext());
+                return true;
+            case R.id.menu_tag_gis:
+                Intent tagIntent = new Intent(this, TagGISActivity.class);
+                startActivity(tagIntent);
+                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
