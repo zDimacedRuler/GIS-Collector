@@ -23,7 +23,7 @@ public class MergeDecisionPolicy {
                 Random random = new Random();
                 return random.nextBoolean();
             case DISTANCE_THRESHOLD_POLICY:
-                if (housDroff <= 30)
+                if (housDroff <= 20)
                     return true;
                 return false;
             case DISTANCE_OR_TFIDF_THRESHOLD_POLICY:
@@ -31,7 +31,7 @@ public class MergeDecisionPolicy {
                     return true;
                 return false;
             case DISTANCE_AND_TFIDF_THRESHOLD_POLICY:
-                if (housDroff <= 50 && tfidfScore >= .30)
+                if (housDroff <= 30 && tfidfScore >= .45)
                     return true;
                 return false;
             default:

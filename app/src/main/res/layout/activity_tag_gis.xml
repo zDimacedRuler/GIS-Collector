@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:mapbox="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -24,8 +24,8 @@
             android:id="@+id/tag_gis_text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="10dp"
             android:gravity="center"
+            android:padding="10dp"
             android:text="Description"
             android:textSize="20sp" />
 
@@ -33,13 +33,13 @@
             android:id="@+id/category_spinner"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="5dp"/>
+            android:layout_marginTop="5dp" />
 
         <com.jaredrummler.materialspinner.MaterialSpinner
             android:id="@+id/items_spinner"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="5dp"/>
+            android:layout_marginTop="5dp" />
     </LinearLayout>
 
     <LinearLayout
@@ -52,26 +52,26 @@
             android:id="@+id/tag_gis_done_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="0 Left"
+            android:layout_weight="4"
             android:gravity="center"
-            android:layout_weight="4" />
+            android:text="0 Left" />
 
         <Button
             android:id="@+id/tag_gis_next_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_weight="4"
-            android:textSize="20sp"
-            android:onClick="onButtonPressed"
             android:background="@drawable/bg_accent_rounded"
-            android:text="START" />
+            android:onClick="onButtonPressed"
+            android:text="START"
+            android:textSize="20sp" />
 
         <TextView
             android:id="@+id/tag_gis_left_text"
             android:layout_width="wrap_content"
-            android:text="All Done"
-            android:gravity="center"
             android:layout_height="wrap_content"
-            android:layout_weight="4" />
+            android:layout_weight="4"
+            android:gravity="center"
+            android:text="All Done" />
     </LinearLayout>
 </LinearLayout>

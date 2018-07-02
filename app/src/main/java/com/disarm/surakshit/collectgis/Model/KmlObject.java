@@ -17,6 +17,8 @@ public class KmlObject {
     private String message;
     private String source;
     private File file;
+    private String tag;
+
 
     public static final int KMLOBJECT_TYPE_POLYGON = 0;
     public static final int KMLOBJECT_TYPE_MARKER = 1;
@@ -32,6 +34,14 @@ public class KmlObject {
         this.source = source;
         this.tileName = tileName;
         this.file = file;
+    }
+
+    public String getTag() {
+        return tag;
+    }
+
+    public void setTag(String tag) {
+        this.tag = tag;
     }
 
     public File getFile() {
