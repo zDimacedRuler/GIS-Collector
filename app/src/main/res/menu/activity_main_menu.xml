@@ -7,11 +7,14 @@
         app:showAsAction="never" />
     <item
         android:id="@+id/merge_gis"
-        android:icon="@drawable/ic_camera_white_24dp"
         android:title="Merge GIS"
-        app:showAsAction="ifRoom" />
+        app:showAsAction="never" />
     <item
         android:id="@+id/menu_tag_gis"
         android:title="Tag GIS"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/menu_evaluate_gis"
+        android:title="Evaluate"
         app:showAsAction="never" />
 </menu>

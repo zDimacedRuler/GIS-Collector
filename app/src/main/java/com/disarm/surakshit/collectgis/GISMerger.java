@@ -43,7 +43,7 @@ public class GISMerger {
         Storage storage = new Storage(context);
         kmlObjects = new ArrayList<>();
         sameTileObjects = new HashMap<>();
-        File file = Environment.getExternalStoragePublicDirectory(Constants.CMS_DOWNLOADED_KML);
+        File file = Environment.getExternalStoragePublicDirectory(Constants.CMS_TAGGED_KML);
 
         /* Mark k and tk to each file */
 
@@ -52,12 +52,14 @@ public class GISMerger {
             KmlDocument kml = new KmlDocument();
             if (kmlFile.getName().contains("kml")) {
                 kml.parseKMLFile(kmlFile);
+                String tag = kml.mKmlRoot.getExtendedData(Constants.EXTENDED_DATA_TAG);
                 final FolderOverlay kmlOverlay = (FolderOverlay) kml.mKmlRoot.buildOverlay(mapView, null, null, kml);
                 for (int i = 0; i < kmlOverlay.getItems().size(); i++) {
                     if (kmlOverlay.getItems().get(i) instanceof org.osmdroid.views.overlay.Polygon) {
                         List<LatLng> polyPoints = ConversionUtil.getLatLngList(((org.osmdroid.views.overlay.Polygon) kmlOverlay.getItems().get(i)).getPoints());
                         String message = ((org.osmdroid.views.overlay.Polygon) kmlOverlay.getItems().get(i)).getSnippet();
                         KmlObject kmlObject = getKMLObject(sourceid, message, polyPoints, KmlObject.KMLOBJECT_TYPE_POLYGON, kmlFile);
+                        kmlObject.setTag(tag);
                         kmlObjects.add(kmlObject);
 
                     } else if (kmlOverlay.getItems().get(i) instanceof org.osmdroid.views.overlay.Marker) {
@@ -106,6 +108,7 @@ public class GISMerger {
                     boolean toMerge = mergeDecisionPolicy.mergeDecider(tfidfScore, housDroff);
                     if (toMerge) {
                         Log.d("Merging", X.getMessage() + " vs " + bucket.get(i).getMessage());
+                        Log.d("Tag Comparing", X.getTag() + " vs " + bucket.get(i).getTag());
                         MergePolicy mergePolicy = new MergePolicy(MergePolicy.CONVEX_HULL);
                         List<LatLng> mergedPoints = mergePolicy.mergeKmlObjects(X, bucket.get(i));
                         String mergedMessage = X.getMessage() + " , " + bucket.get(i).getMessage();
@@ -117,6 +120,10 @@ public class GISMerger {
                                 , mergedSource
                                 , tileName
                                 , null);
+                        if (X.getTag() == null) {
+                            mergeKmlObject.setTag(bucket.get(i).getTag());
+                        } else
+                            mergeKmlObject.setTag(X.getTag() + "$" + bucket.get(i).getTag());
                         X = mergeKmlObject;
                         merged = true;
                     } else {
@@ -188,6 +195,31 @@ public class GISMerger {
         object.setFile(kmlFile);
         object = addTileNameAndLevel(object);
         return object;
+    }
+
+    public static KmlObject getTaggedKMlObject(File file, MapView mapView) {
+        String sourceid = file.getName().split("_")[3];
+        KmlDocument kml = new KmlDocument();
+        kml.parseKMLFile(file);
+        KmlObject kmlObject = new KmlObject();
+        String tag = kml.mKmlRoot.getExtendedData(Constants.EXTENDED_DATA_TAG);
+        FolderOverlay kmlOverlay = (FolderOverlay) kml.mKmlRoot.buildOverlay(mapView, null, null, kml);
+        for (int i = 0; i < kmlOverlay.getItems().size(); i++) {
+            if (kmlOverlay.getItems().get(i) instanceof org.osmdroid.views.overlay.Polygon) {
+                List<LatLng> polyPoints = ConversionUtil.getLatLngList(((org.osmdroid.views.overlay.Polygon) kmlOverlay.getItems().get(i)).getPoints());
+                String message = ((org.osmdroid.views.overlay.Polygon) kmlOverlay.getItems().get(i)).getSnippet();
+                kmlObject = getKMLObject(sourceid, message, polyPoints, KmlObject.KMLOBJECT_TYPE_POLYGON, file);
+
+            } else if (kmlOverlay.getItems().get(i) instanceof org.osmdroid.views.overlay.Marker) {
+                LatLng point = ConversionUtil.getLatLng(((org.osmdroid.views.overlay.Marker) kmlOverlay.getItems().get(i)).getPosition());
+                String message = ((org.osmdroid.views.overlay.Marker) kmlOverlay.getItems().get(i)).getSnippet();
+                List<LatLng> pointList = new ArrayList<>();
+                pointList.add(point);
+                kmlObject = getKMLObject(sourceid, message, pointList, KmlObject.KMLOBJECT_TYPE_MARKER, file);
+            }
+        }
+        kmlObject.setTag(tag);
+        return kmlObject;
     }
 
     public static KmlObject addTileNameAndLevel(KmlObject kmlobject) {
@@ -289,6 +321,7 @@ public class GISMerger {
         polygon.setPoints(ConversionUtil.getGeoPointList(kmlObject.getPoints()));
         polygon.setSnippet(kmlObject.getMessage());
         kml.mKmlRoot.addOverlay(polygon, kml);
+        kml.mKmlRoot.setExtendedData(Constants.EXTENDED_DATA_TAG, kmlObject.getTag());
         File mergeDirectory = Environment.getExternalStoragePublicDirectory(Constants.CMS_MERGED_KML);
         File mergeFile = Environment.getExternalStoragePublicDirectory(Constants.CMS_MERGED_KML + file_name);
         if (!mergeDirectory.exists())

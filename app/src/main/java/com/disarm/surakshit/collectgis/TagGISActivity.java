@@ -67,7 +67,7 @@ public class TagGISActivity extends AppCompatActivity {
         categorySpinner.setOnItemSelectedListener(new MaterialSpinner.OnItemSelectedListener() {
             @Override
             public void onItemSelected(MaterialSpinner view, int position, long id, Object item) {
-                showToastMessage(categoryArray[position]);
+//                showToastMessage(categoryArray[position]);
                 switch (position) {
                     case 0:
                         selectedArray = hallArray;
@@ -89,14 +89,14 @@ public class TagGISActivity extends AppCompatActivity {
                 itemsSpinner.setSelectedIndex(0);
             }
         });
-        itemsSpinner.setOnItemSelectedListener(new MaterialSpinner.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(MaterialSpinner view, int position, long id, Object item) {
-                showToastMessage(selectedArray[position]);
-            }
-        });
+//        itemsSpinner.setOnItemSelectedListener(new MaterialSpinner.OnItemSelectedListener() {
+//            @Override
+//            public void onItemSelected(MaterialSpinner view, int position, long id, Object item) {
+//                showToastMessage(selectedArray[position]);
+//            }
+//        });
         started = false;
-//        tagGISStatus();
+        tagGISStatus();
     }
 
     private void tagGISStatus() {
@@ -130,7 +130,7 @@ public class TagGISActivity extends AppCompatActivity {
                 mapboxMap.setStyleUrl(mapUrl);
                 mapboxMap.setCameraPosition(new CameraPosition.Builder()
                         .target(new LatLng(23.5477, 87.2931))
-                        .zoom(14)
+                        .zoom(16)
                         .build());
                 mapboxMap.setMaxZoomPreference(18);
                 mapboxMap.setMinZoomPreference(14);
@@ -153,7 +153,7 @@ public class TagGISActivity extends AppCompatActivity {
         doneTextView = findViewById(R.id.tag_gis_done_text);
         leftTextView = findViewById(R.id.tag_gis_left_text);
         nextButton = findViewById(R.id.tag_gis_next_button);
-        mapUrl = getString(R.string.mapbox_style_light);
+        mapUrl = getString(R.string.mapbox_style_mapbox_streets);
         categoryArray = getResources().getStringArray(R.array.categories);
         hallArray = getResources().getStringArray(R.array.hall_of_residence);
         departmentArray = getResources().getStringArray(R.array.department);
@@ -217,7 +217,7 @@ public class TagGISActivity extends AppCompatActivity {
             fileCounter = 0;
         }
         if (kmlDocument != null && mergedFile != null) {
-            kmlDocument.mKmlRoot.setExtendedData("TAG", selectedArray[itemsSpinner.getSelectedIndex()]);
+            kmlDocument.mKmlRoot.setExtendedData(Constants.EXTENDED_DATA_TAG, selectedArray[itemsSpinner.getSelectedIndex()]);
             kmlDocument.saveAsKML(mergedFile);
         }
         if (fileCounter >= downloadedFiles.length) {

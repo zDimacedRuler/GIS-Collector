@@ -26,8 +26,10 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 import com.disarm.surakshit.collectgis.Model.FileUploadModel;
+import com.disarm.surakshit.collectgis.Model.KmlObject;
 import com.disarm.surakshit.collectgis.Util.Constants;
 import com.disarm.surakshit.collectgis.Util.ConversionUtil;
+import com.disarm.surakshit.collectgis.Util.ReportGenerator;
 import com.disarm.surakshit.collectgis.Util.UploadJobService;
 import com.disarm.surakshit.collectgis.location.LocationState;
 import com.disarm.surakshit.collectgis.location.MLocation;
@@ -79,9 +81,13 @@ import org.osmdroid.views.overlay.FolderOverlay;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -738,16 +744,87 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                 startActivity(intent);
                 return true;
             case R.id.merge_gis:
-                showToastMessage("Merging GIS..");
-                GISMerger.mergeGIS(getApplicationContext());
+                File folder = Environment.getExternalStoragePublicDirectory(Constants.CMS_TAGGED_KML);
+                if (folder.exists() && folder.listFiles().length > 0) {
+                    GISMerger.mergeGIS(getApplicationContext());
+                    showToastMessage("Merging GIS..");
+                } else
+                    showToastMessage("Tagged Kml doesn't exist");
                 return true;
             case R.id.menu_tag_gis:
                 Intent tagIntent = new Intent(this, TagGISActivity.class);
                 startActivity(tagIntent);
                 return true;
+            case R.id.menu_evaluate_gis:
+                showToastMessage("Evaluate");
+                evaluateGIS();
+                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
+    }
+
+    private void evaluateGIS() {
+        File groundTruthFolder = Environment.getExternalStoragePublicDirectory(Constants.CMS_GROUND_TRUTH_KML);
+        File mergedGISFolder = Environment.getExternalStoragePublicDirectory(Constants.CMS_MERGED_KML);
+        if (!groundTruthFolder.exists()) {
+            showToastMessage("Ground Truth Data doesnt exist!!");
+            return;
+        }
+        if (!mergedGISFolder.exists()) {
+            showToastMessage("Merged Data doesnt exist!!");
+            return;
+        }
+
+        Map<String, KmlObject> tagToGroundTruth = new HashMap<>();
+        Map<String, List<KmlObject>> tagToMerge = new HashMap<>();
+
+        for (File file : groundTruthFolder.listFiles()) {
+            KmlObject kmlObject = GISMerger.getTaggedKMlObject(file, mMapView);
+            tagToGroundTruth.put(kmlObject.getTag(), kmlObject);
+        }
+        for (File file : mergedGISFolder.listFiles()) {
+            KmlObject kmlObject = GISMerger.getTaggedKMlObject(file, mMapView);
+            List<String> tagList = Arrays.asList(kmlObject.getTag().split("\\$"));
+            Log.d("SplittedTags", Arrays.toString(kmlObject.getTag().split("\\$")));
+            Set<String> tagSet = new HashSet<String>(tagList);
+
+            for (String tag : tagSet) {
+                if (!tagToMerge.containsKey(tag))
+                    tagToMerge.put(tag, new ArrayList<KmlObject>());
+                Log.d("Tag", kmlObject.getFile().getName());
+                Log.d("Tag", tag);
+                tagToMerge.get(tag).add(kmlObject);
+            }
+
+        }
+        double totalHausdorffDistance = 0;
+        List<Double> hausdorffDistances = new ArrayList<>();
+        double totalKMLFiles = 0;
+        double meanHausdorffDistance;
+        double stdvHausdorffDistance = 0;
+        for (String tag : tagToGroundTruth.keySet()) {
+            Log.d("Tag", tagToGroundTruth.get(tag).toString());
+            List<KmlObject> objects = tagToMerge.get(tag);
+            if (objects != null) {
+                for (KmlObject mergeObject : objects) {
+                    double distance = GISMerger.housedorffDistance(tagToGroundTruth.get(tag), mergeObject);
+                    Log.d("Comparing", tag);
+                    hausdorffDistances.add(distance);
+                    totalHausdorffDistance += distance;
+                    totalKMLFiles += 1;
+                }
+            }
+        }
+        meanHausdorffDistance = totalHausdorffDistance / totalKMLFiles;
+        for (double hd : hausdorffDistances) {
+            stdvHausdorffDistance += Math.pow((hd - meanHausdorffDistance), 2);
+        }
+        stdvHausdorffDistance = stdvHausdorffDistance / totalKMLFiles;
+        stdvHausdorffDistance = Math.sqrt(stdvHausdorffDistance);
+        Log.d("stdvHD", "" + stdvHausdorffDistance);
+        Log.d("meanHD", "" + meanHausdorffDistance);
+        ReportGenerator.generateReport(meanHausdorffDistance, stdvHausdorffDistance);
     }
 
     private void downloadFile(String fileName) {
