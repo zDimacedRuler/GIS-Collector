@@ -29,6 +29,7 @@ import com.disarm.surakshit.collectgis.Model.FileUploadModel;
 import com.disarm.surakshit.collectgis.Model.KmlObject;
 import com.disarm.surakshit.collectgis.Util.Constants;
 import com.disarm.surakshit.collectgis.Util.ConversionUtil;
+import com.disarm.surakshit.collectgis.Util.MergeDecisionPolicy;
 import com.disarm.surakshit.collectgis.Util.ReportGenerator;
 import com.disarm.surakshit.collectgis.Util.UploadJobService;
 import com.disarm.surakshit.collectgis.location.LocationState;
@@ -746,8 +747,10 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
             case R.id.merge_gis:
                 File folder = Environment.getExternalStoragePublicDirectory(Constants.CMS_TAGGED_KML);
                 if (folder.exists() && folder.listFiles().length > 0) {
-                    GISMerger.mergeGIS(getApplicationContext());
                     showToastMessage("Merging GIS..");
+                    MergeDecisionPolicy mergeDecisionPolicy = new MergeDecisionPolicy(MergeDecisionPolicy.DISTANCE_THRESHOLD_POLICY, 20, 0);
+                    int total = GISMerger.mergeGIS(mMapView, mergeDecisionPolicy);
+                    Log.d("Merged Files:", "" + total);
                 } else
                     showToastMessage("Tagged Kml doesn't exist");
                 return true;
@@ -756,24 +759,24 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                 startActivity(tagIntent);
                 return true;
             case R.id.menu_evaluate_gis:
-                showToastMessage("Evaluate");
-                evaluateGIS();
+                showToastMessage("Automate");
+                automateMerge();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
     }
 
-    private void evaluateGIS() {
+    private String evaluateGIS() {
         File groundTruthFolder = Environment.getExternalStoragePublicDirectory(Constants.CMS_GROUND_TRUTH_KML);
         File mergedGISFolder = Environment.getExternalStoragePublicDirectory(Constants.CMS_MERGED_KML);
         if (!groundTruthFolder.exists()) {
-            showToastMessage("Ground Truth Data doesnt exist!!");
-            return;
+//            showToastMessage("Ground Truth Data doesn't exist!!");
+            return "0,0";
         }
         if (!mergedGISFolder.exists()) {
-            showToastMessage("Merged Data doesnt exist!!");
-            return;
+//            showToastMessage("Merged Data doesn't exist!!");
+            return "0,0";
         }
 
         Map<String, KmlObject> tagToGroundTruth = new HashMap<>();
@@ -824,7 +827,34 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         stdvHausdorffDistance = Math.sqrt(stdvHausdorffDistance);
         Log.d("stdvHD", "" + stdvHausdorffDistance);
         Log.d("meanHD", "" + meanHausdorffDistance);
-        ReportGenerator.generateReport(meanHausdorffDistance, stdvHausdorffDistance);
+        return String.valueOf(meanHausdorffDistance) + "," + String.valueOf(stdvHausdorffDistance);
+    }
+
+    //merge wrt to Hausdorff Distance
+    private void automateMerge() {
+        final String fileName = "TFIDF policy" + ".txt";
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                int notMergedFiles;
+                String result;
+                for (int i = 0; i <= 1; i += 0.05) {
+                    MergeDecisionPolicy mergeDecisionPolicy = new MergeDecisionPolicy(MergeDecisionPolicy.TFIDF_THRESHOLD_POLICY, 0, i);
+                    notMergedFiles = GISMerger.mergeGIS(mMapView, mergeDecisionPolicy);
+                    result = evaluateGIS();
+                    String log = String.valueOf(i) + "," + result + "," + String.valueOf(notMergedFiles);
+                    Log.d("Iteration HD:" + i, log);
+                    ReportGenerator.generateReport(log, fileName);
+                }
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        showToastMessage("Complete");
+                    }
+                });
+            }
+        });
+        thread.start();
     }
 
     private void downloadFile(String fileName) {
