@@ -5,7 +5,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
-import android.content.res.Resources;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Environment;
@@ -80,6 +79,8 @@ import org.osmdroid.bonuspack.kml.KmlPlacemark;
 import org.osmdroid.views.overlay.FolderOverlay;
 
 import java.io.File;
+import java.math.RoundingMode;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -748,7 +749,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                 File folder = Environment.getExternalStoragePublicDirectory(Constants.CMS_TAGGED_KML);
                 if (folder.exists() && folder.listFiles().length > 0) {
                     showToastMessage("Merging GIS..");
-                    MergeDecisionPolicy mergeDecisionPolicy = new MergeDecisionPolicy(MergeDecisionPolicy.DISTANCE_THRESHOLD_POLICY, 20, 0);
+                    MergeDecisionPolicy mergeDecisionPolicy = new MergeDecisionPolicy(MergeDecisionPolicy.TFIDF_THRESHOLD_POLICY, 0, 0);
                     int total = GISMerger.mergeGIS(mMapView, mergeDecisionPolicy);
                     Log.d("Merged Files:", "" + total);
                 } else
@@ -760,7 +761,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                 return true;
             case R.id.menu_evaluate_gis:
                 showToastMessage("Automate");
-                automateMerge();
+                automateMergeTFixed();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -790,7 +791,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
             KmlObject kmlObject = GISMerger.getTaggedKMlObject(file, mMapView);
             List<String> tagList = Arrays.asList(kmlObject.getTag().split("\\$"));
             Log.d("SplittedTags", Arrays.toString(kmlObject.getTag().split("\\$")));
-            Set<String> tagSet = new HashSet<String>(tagList);
+            Set<String> tagSet = new HashSet<>(tagList);
 
             for (String tag : tagSet) {
                 if (!tagToMerge.containsKey(tag))
@@ -830,20 +831,108 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         return String.valueOf(meanHausdorffDistance) + "," + String.valueOf(stdvHausdorffDistance);
     }
 
-    //merge wrt to Hausdorff Distance
-    private void automateMerge() {
+    //merge wrt to TFIDF Distance
+    private void automateMergeTFIDF() {
         final String fileName = "TFIDF policy" + ".txt";
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
                 int notMergedFiles;
                 String result;
-                for (int i = 0; i <= 1; i += 0.05) {
-                    MergeDecisionPolicy mergeDecisionPolicy = new MergeDecisionPolicy(MergeDecisionPolicy.TFIDF_THRESHOLD_POLICY, 0, i);
+                for (int i = 0; i <= 50; i++) {
+                    double index = i * 0.02;
+                    DecimalFormat df = new DecimalFormat("#.##");
+                    df.setRoundingMode(RoundingMode.CEILING);
+                    MergeDecisionPolicy mergeDecisionPolicy = new MergeDecisionPolicy(MergeDecisionPolicy.TFIDF_THRESHOLD_POLICY, 0, index);
+                    notMergedFiles = GISMerger.mergeGIS(mMapView, mergeDecisionPolicy);
+                    result = evaluateGIS();
+                    String log = df.format(index) + "," + result + "," + String.valueOf(notMergedFiles);
+                    Log.d("Iteration HD:", log);
+                    ReportGenerator.generateReport(log, fileName);
+                }
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        showToastMessage("Complete");
+                    }
+                });
+            }
+        });
+        thread.start();
+    }
+
+    //merge wrt to Hausdorff Distance and Tf-Idf
+    private void automateMergeHFixed() {
+        final String fileName = "Hausdorff fixed 30 and TfIdf Policy" + ".txt";
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                int notMergedFiles;
+                String result;
+                double thresholdDistance = 30;
+                for (int i = 0; i <= 50; i++) {
+                    double index = i * 0.02;
+                    DecimalFormat df = new DecimalFormat("#.##");
+                    df.setRoundingMode(RoundingMode.CEILING);
+                    MergeDecisionPolicy mergeDecisionPolicy = new MergeDecisionPolicy(MergeDecisionPolicy.DISTANCE_AND_TFIDF_THRESHOLD_POLICY, thresholdDistance, index);
+                    notMergedFiles = GISMerger.mergeGIS(mMapView, mergeDecisionPolicy);
+                    result = evaluateGIS();
+                    String log = df.format(index) + "," + result + "," + String.valueOf(notMergedFiles);
+                    Log.d("Iteration HD:", log);
+                    ReportGenerator.generateReport(log, fileName);
+                }
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        showToastMessage("Complete");
+                    }
+                });
+            }
+        });
+        thread.start();
+    }
+
+    private void automateMergeTFixed() {
+        final String fileName = "TfIdf Policy fixed .6 and Hausdorff" + ".txt";
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                int notMergedFiles;
+                String result;
+                double thresholdTfidf = 0.6;
+                for (int i = 0; i <= 100; i += 2) {
+                    MergeDecisionPolicy mergeDecisionPolicy = new MergeDecisionPolicy(MergeDecisionPolicy.TFIDF_AND_DISTANCE_THRESHOLD_POLICY, i, thresholdTfidf);
                     notMergedFiles = GISMerger.mergeGIS(mMapView, mergeDecisionPolicy);
                     result = evaluateGIS();
                     String log = String.valueOf(i) + "," + result + "," + String.valueOf(notMergedFiles);
-                    Log.d("Iteration HD:" + i, log);
+                    Log.d("Iteration HD:", log);
+                    ReportGenerator.generateReport(log, fileName);
+                }
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        showToastMessage("Complete");
+                    }
+                });
+            }
+        });
+        thread.start();
+    }
+
+    //merge wrt to Hausdorff Distance
+    private void automateMergeHausdorff() {
+        final String fileName = "Hausdorff Policy 3" + ".txt";
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                int notMergedFiles;
+                String result;
+                for (int i = 0; i <= 100; i += 2) {
+                    MergeDecisionPolicy mergeDecisionPolicy = new MergeDecisionPolicy(MergeDecisionPolicy.DISTANCE_THRESHOLD_POLICY, i, 0);
+                    notMergedFiles = GISMerger.mergeGIS(mMapView, mergeDecisionPolicy);
+                    result = evaluateGIS();
+                    String log = String.valueOf(i) + "," + result + "," + String.valueOf(notMergedFiles);
+                    Log.d("Iteration HD:", log);
                     ReportGenerator.generateReport(log, fileName);
                 }
                 runOnUiThread(new Runnable() {

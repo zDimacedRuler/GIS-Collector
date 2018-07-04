@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Created by bishakh on 6/28/18.
+ * Created by aman on 6/28/18.
  */
 
 public class GISMerger {
@@ -109,8 +109,6 @@ public class GISMerger {
                     double housDroff = housedorffDistance(X, bucket.get(i));
                     boolean toMerge = mergeDecisionPolicy.mergeDecider(tfidfScore, housDroff);
                     if (toMerge) {
-                        if (!mergedBucket.contains(X))
-                            totalMergedFiles++;
                         MergePolicy mergePolicy = new MergePolicy(MergePolicy.CONVEX_HULL);
                         List<LatLng> mergedPoints = mergePolicy.mergeKmlObjects(X, bucket.get(i));
                         String mergedMessage = X.getMessage() + " , " + bucket.get(i).getMessage();
@@ -134,11 +132,15 @@ public class GISMerger {
                 }
                 if (merged) {
                     mergedBucket.add(X);
-                } else
-                    ListCopy(bucket, newBucket);
+                    String[] message = X.getMessage().split(",");
+                    Log.d("Message:" + message.length, X.getMessage());
+                    totalMergedFiles += message.length;
+                }
+                ListCopy(bucket, newBucket);
             }
             saveKmlObjectInFile(mergedBucket);
         }
+        Log.d("Message:", "------------------------------------------");
         //recording time after merging
         long tEnd = System.currentTimeMillis();
         long tDelta = tEnd - tStart;
@@ -152,9 +154,7 @@ public class GISMerger {
 
     private static void ListCopy(List<KmlObject> dest, List<KmlObject> source) {
         dest.clear();
-        for (KmlObject obj : source) {
-            dest.add(obj);
-        }
+        dest.addAll(source);
     }
 
     private static void saveKmlObjectInFile(List<KmlObject> newBucket) {

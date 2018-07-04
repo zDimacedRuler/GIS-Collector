@@ -3,7 +3,7 @@ package com.disarm.surakshit.collectgis.Util;
 import java.util.Random;
 
 /**
- * Created by bishakh on 6/30/18.
+ * Created by aman on 6/30/18.
  */
 
 public class MergeDecisionPolicy {
@@ -14,6 +14,7 @@ public class MergeDecisionPolicy {
     public static final int DISTANCE_THRESHOLD_POLICY = 2;
     public static final int DISTANCE_OR_TFIDF_THRESHOLD_POLICY = 3;
     public static final int DISTANCE_AND_TFIDF_THRESHOLD_POLICY = 4;
+    public static final int TFIDF_AND_DISTANCE_THRESHOLD_POLICY = 6;
     public static final int TFIDF_THRESHOLD_POLICY = 5;
 
     public MergeDecisionPolicy(int policy, double thresholdDistance, double thresholdtdIdfScore) {
@@ -28,21 +29,15 @@ public class MergeDecisionPolicy {
                 Random random = new Random();
                 return random.nextBoolean();
             case DISTANCE_THRESHOLD_POLICY:
-                if (housDroff <= thresholdDistance)
-                    return true;
-                return false;
+                return housDroff <= thresholdDistance;
             case DISTANCE_OR_TFIDF_THRESHOLD_POLICY:
-                if (housDroff <= thresholdDistance || tfidfScore >= thresholdtdIdfScore)
-                    return true;
-                return false;
+                return housDroff <= thresholdDistance || tfidfScore >= thresholdtdIdfScore;
             case DISTANCE_AND_TFIDF_THRESHOLD_POLICY:
-                if (housDroff <= thresholdDistance && tfidfScore >= thresholdtdIdfScore)
-                    return true;
-                return false;
+                return housDroff <= thresholdDistance && tfidfScore >= thresholdtdIdfScore;
             case TFIDF_THRESHOLD_POLICY:
-                if (tfidfScore >= thresholdtdIdfScore)
-                    return true;
-                return false;
+                return tfidfScore >= thresholdtdIdfScore;
+            case TFIDF_AND_DISTANCE_THRESHOLD_POLICY:
+                return tfidfScore >= thresholdtdIdfScore && housDroff <= thresholdDistance;
             default:
                 return false;
         }
