@@ -34,22 +34,16 @@ import java.util.Map;
 
 public class GISMerger {
 
-    //    private static MapView mapView;
-    private static List<KmlObject> kmlObjects;
-    private static Map<String, List<KmlObject>> sameTileObjects;
-
     //return number of not merged files
     public static int mergeGIS(MapView mapView, MergeDecisionPolicy mergeDecisionPolicy) {
         int totalNotMergedFiles = 0;
         int totalMergedFiles = 0;
-//        mapView = new MapView(context);
         Storage storage = new Storage(mapView.getContext());
-        kmlObjects = new ArrayList<>();
-        sameTileObjects = new HashMap<>();
+        List<KmlObject> kmlObjects = new ArrayList<>();
+        Map<String, List<KmlObject>> sameTileObjects = new HashMap<>();
         File file = Environment.getExternalStoragePublicDirectory(Constants.CMS_TAGGED_KML);
 
         /* Mark k and tk to each file */
-
         for (File kmlFile : file.listFiles()) {
             String sourceid = kmlFile.getName().split("_")[3];
             KmlDocument kml = new KmlDocument();
@@ -82,7 +76,7 @@ public class GISMerger {
             sameTileObjects.get(object.getTileName()).add(object);
         }
 
-//        // use single bucket for all objects
+        //use single bucket for all objects
 //        sameTileObjects.clear();
 //        sameTileObjects.put("singleTile", kmlObjects);
 
@@ -92,22 +86,23 @@ public class GISMerger {
 
         //recording time just before merging
         long tStart = System.currentTimeMillis();
+
+        //For each bucket
         //comparing kmlObject of each bucket
         for (String tileName : sameTileObjects.keySet()) {
             List<KmlObject> bucket = sameTileObjects.get(tileName);
             List<KmlObject> mergedBucket = new ArrayList<>();
-            Log.d("--*-----------", Arrays.toString(bucket.toArray()));
-
-
             while (bucket.size() > 0) {
                 boolean merged = false;
                 KmlObject X = bucket.get(0);
                 bucket.remove(0);
                 List<KmlObject> newBucket = new ArrayList<>();
+                //comparing first object 'X' of the bucket with the others
                 for (int i = 0; i < bucket.size(); i++) {
                     double tfidfScore = new JaroWinklerTFIDF().score(X.getMessage(), bucket.get(i).getMessage());
                     double housDroff = housedorffDistance(X, bucket.get(i));
                     boolean toMerge = mergeDecisionPolicy.mergeDecider(tfidfScore, housDroff);
+                    //if it can be merged then merge and update the object 'X'
                     if (toMerge) {
                         MergePolicy mergePolicy = new MergePolicy(MergePolicy.CONVEX_HULL);
                         List<LatLng> mergedPoints = mergePolicy.mergeKmlObjects(X, bucket.get(i));
@@ -126,21 +121,24 @@ public class GISMerger {
                             mergeKmlObject.setTag(X.getTag() + "$" + bucket.get(i).getTag());
                         X = mergeKmlObject;
                         merged = true;
-                    } else {
-                        newBucket.add(bucket.get(i));
                     }
+                    //objects in the bucket that aren't compatible are put in a new bucket
+                    else
+                        newBucket.add(bucket.get(i));
                 }
                 if (merged) {
+                    //keep the merged 'X' object in a new bucket that will be saved in file
                     mergedBucket.add(X);
+                    //count the number of messages in 'X' to calculate number of objects merged
                     String[] message = X.getMessage().split(",");
-                    Log.d("Message:" + message.length, X.getMessage());
                     totalMergedFiles += message.length;
                 }
+                //repeat the process of merging for objects that haven't merged
                 ListCopy(bucket, newBucket);
             }
+            //save to file merged objects
             saveKmlObjectInFile(mergedBucket);
         }
-        Log.d("Message:", "------------------------------------------");
         //recording time after merging
         long tEnd = System.currentTimeMillis();
         long tDelta = tEnd - tStart;
@@ -152,11 +150,13 @@ public class GISMerger {
         return totalNotMergedFiles;
     }
 
+    //helper method to copy elements between objects
     private static void ListCopy(List<KmlObject> dest, List<KmlObject> source) {
         dest.clear();
         dest.addAll(source);
     }
 
+    //save List of KmlObjects in file
     private static void saveKmlObjectInFile(List<KmlObject> newBucket) {
         for (KmlObject object : newBucket) {
             File mergedKmlFile = saveKMlInFile(object);
@@ -164,7 +164,7 @@ public class GISMerger {
         }
     }
 
-
+    //Method to calculate Hausdorff Distance between two Polygons
     public static double housedorffDistance(KmlObject object1, KmlObject object2) {
         double hDistance1, hDistance2;
         hDistance1 = hDistance2 = Double.MIN_VALUE;
@@ -193,6 +193,8 @@ public class GISMerger {
         return hDistance2;
     }
 
+    //Method to form KMLObject from values
+    //returns a kmlObject
     public static KmlObject getKMLObject(String sourceId, String message, List<LatLng> polyPoints, int type, File kmlFile) {
         KmlObject object = new KmlObject();
         object.setMessage(message);
@@ -204,6 +206,7 @@ public class GISMerger {
         return object;
     }
 
+    //Method to form Tagged KmlObjects from File
     public static KmlObject getTaggedKMlObject(File file, MapView mapView) {
         String sourceid = file.getName().split("_")[3];
         KmlDocument kml = new KmlDocument();
@@ -229,14 +232,12 @@ public class GISMerger {
         return kmlObject;
     }
 
+    //Method to find the tile name and zoom level of KmlObject
     public static KmlObject addTileNameAndLevel(KmlObject kmlobject) {
-
         List<LatLng> latLngs = kmlobject.getPoints();
-
         int minLevel = 10;
         int maxLevel = 20;
         int currentLevel = 15;
-
         int zoomLevel = binarySearchZoom(minLevel, maxLevel, currentLevel, latLngs);
         String tileName = getTileNumber(latLngs.get(0).getLatitude(), latLngs.get(0).getLongitude(), zoomLevel);
         kmlobject.setZoom(zoomLevel);
@@ -245,6 +246,7 @@ public class GISMerger {
 
     }
 
+    //returns the smallest fit zoom level of the polygon
     private static int binarySearchZoom(int minLevel, int maxLevel, int currentLevel, List<LatLng> latLngs) {
         if (currentLevel <= minLevel) {
             return currentLevel;
@@ -274,6 +276,7 @@ public class GISMerger {
         }
     }
 
+    //returns the Tile name wrt to lat long and zoom level
     public static String getTileNumber(final double lat, final double lon, final int zoom) {
         int xtile = (int) Math.floor((lon + 180) / 360 * (1 << zoom));
         int ytile = (int) Math.floor((1 - Math.log(Math.tan(Math.toRadians(lat)) + 1 / Math.cos(Math.toRadians(lat))) / Math.PI) / 2 * (1 << zoom));

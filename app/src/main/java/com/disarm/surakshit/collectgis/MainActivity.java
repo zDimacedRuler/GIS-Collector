@@ -150,14 +150,17 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         init();
         setMapUrl();
         mapView.onCreate(savedInstanceState);
+        //initialize map initial state
         mapInit();
         setButton();
         isGPSEnabled();
+        //load local kml data
         refreshData();
         //schedule upload jobService
         dispatcher = new FirebaseJobDispatcher(new GooglePlayDriver(this));
         isJobInitialized = false;
         scheduleJobService();
+        //download data from firebase
         getFireStoreData();
     }
 
@@ -192,6 +195,8 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
     }
 
     private void mapInit() {
+
+        //setting up listeners for polygon and polyline onCLick
         polygonClickListener = new MapboxMap.OnPolygonClickListener() {
             @Override
             public void onPolygonClick(@NonNull Polygon polygon) {
@@ -206,6 +211,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                     showToastMessage(polylineMessage.get(polyline));
             }
         };
+        //setting up map
         mapView.getMapAsync(new OnMapReadyCallback() {
             @Override
             public void onMapReady(MapboxMap mapboxMap) {
@@ -251,6 +257,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         });
     }
 
+    //helper method to show Toast Messages
     private void showToastMessage(String s) {
         if (toast != null)
             toast.cancel();
@@ -258,6 +265,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         toast.show();
     }
 
+    //Method to define Button clicks of all UI Buttons
     private void setButton() {
         addFlag = 0;
         mapView.getMapAsync(new OnMapReadyCallback() {
@@ -344,6 +352,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         });
     }
 
+    //Method to show dialog for entering description and capturing images
     private void createDialog() {
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_place, null);
         final EditText placeEdit = dialogView.findViewById(R.id.dialog_place_edit);
@@ -356,6 +365,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         builder.setView(dialogView).setCancelable(false);
         final AlertDialog dialog = builder.create();
         dialog.show();
+        //setting up dialog Button onClick
         captureImage.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -367,7 +377,6 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                 imageUri = FileProvider.getUriForFile(MainActivity.this, BuildConfig.APPLICATION_ID + ".provider", image);
                 cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
                 cameraIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-//                last_file_name = image.getName();
                 startActivityForResult(cameraIntent, CAPTURE_IMAGE);
             }
         });
@@ -631,8 +640,8 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                         break;
                     default:
                         MLocation.subscribe(this);
-//                        if (locationEngine.isConnected())
-//                            locationEngine.activate();
+                        //if (locationEngine.isConnected())
+                        //locationEngine.activate();
                         Toast.makeText(this, "GPS is enabled.", Toast.LENGTH_LONG).show();
                         break;
                 }
@@ -650,7 +659,8 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
             File f = Environment.getExternalStoragePublicDirectory(imageFilePath);
             try {
                 out = new FileOutputStream(f.getAbsoluteFile());
-                resized.compress(Bitmap.CompressFormat.JPEG, 100, out); // bmp is your Bitmap instance
+                resized.compress(Bitmap.CompressFormat.JPEG, 100, out);
+                // bmp is your Bitmap instance
                 // PNG is a lossless format, the compression factor (100) is ignored
             } catch (Exception e) {
                 e.printStackTrace();

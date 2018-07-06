@@ -67,7 +67,6 @@ public class TagGISActivity extends AppCompatActivity {
         categorySpinner.setOnItemSelectedListener(new MaterialSpinner.OnItemSelectedListener() {
             @Override
             public void onItemSelected(MaterialSpinner view, int position, long id, Object item) {
-//                showToastMessage(categoryArray[position]);
                 switch (position) {
                     case 0:
                         selectedArray = hallArray;
@@ -89,12 +88,6 @@ public class TagGISActivity extends AppCompatActivity {
                 itemsSpinner.setSelectedIndex(0);
             }
         });
-//        itemsSpinner.setOnItemSelectedListener(new MaterialSpinner.OnItemSelectedListener() {
-//            @Override
-//            public void onItemSelected(MaterialSpinner view, int position, long id, Object item) {
-//                showToastMessage(selectedArray[position]);
-//            }
-//        });
         started = false;
         tagGISStatus();
     }

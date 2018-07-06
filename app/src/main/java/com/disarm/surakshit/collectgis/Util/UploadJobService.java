@@ -59,7 +59,7 @@ public class UploadJobService extends JobService {
     private void uploadFiles() {
         File kmlDir = Environment.getExternalStoragePublicDirectory(Constants.CMS_TEMP_KML);
         if (kmlDir.listFiles().length > 0) {
-            //there are files in tempKMZ directory that need to be uploaded
+            //there are files in tempKML directory that need to be uploaded
             for (File file : kmlDir.listFiles()) {
                 //files not uploaded
                 Log.d("Not Uploaded", "file name" + file.getName());
@@ -83,6 +83,7 @@ public class UploadJobService extends JobService {
                     //update in firestore
                     FileUploadModel fileUploadModal;
                     if (imageToUpload.exists()) {
+                        //upload image file to fireBase
                         fileUploadModal = new FileUploadModel(phoneNumber, file_name, true);
                         StorageReference imageRef = mStorageRef.child(IMAGES_CONST).child(fileBase + Constants.JPEG_EXTENSION);
                         Uri imageUri = Uri.fromFile(imageToUpload);
