@@ -7,13 +7,23 @@ package com.disarm.surakshit.collectgis.Model;
 public class FileUploadModel {
     private String name;
     private String fileName;
+    private Boolean isImagePresent;
 
     public FileUploadModel() {
     }
 
-    public FileUploadModel(String name, String fileName) {
+    public FileUploadModel(String name, String fileName, Boolean isPresent) {
         this.name = name;
         this.fileName = fileName;
+        isImagePresent = isPresent;
+    }
+
+    public Boolean getImagePresent() {
+        return isImagePresent;
+    }
+
+    public void setImagePresent(Boolean imagePresent) {
+        isImagePresent = imagePresent;
     }
 
     public String getName() {

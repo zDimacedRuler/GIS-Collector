@@ -5,14 +5,18 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
 import android.location.Location;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.preference.PreferenceManager;
+import android.provider.MediaStore;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
+import android.support.v4.content.FileProvider;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -22,6 +26,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.disarm.surakshit.collectgis.Model.FileUploadModel;
@@ -73,13 +78,19 @@ import com.mapbox.mapboxsdk.plugins.locationlayer.LocationLayerPlugin;
 import com.mapbox.mapboxsdk.plugins.locationlayer.OnLocationLayerClickListener;
 import com.mapbox.mapboxsdk.plugins.locationlayer.modes.CameraMode;
 import com.mapbox.mapboxsdk.plugins.locationlayer.modes.RenderMode;
+import com.snatik.storage.Storage;
 
+import org.apache.commons.io.FilenameUtils;
 import org.osmdroid.bonuspack.kml.KmlDocument;
 import org.osmdroid.bonuspack.kml.KmlPlacemark;
 import org.osmdroid.views.overlay.FolderOverlay;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.security.SecureRandom;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -122,12 +133,15 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
     private Boolean downloadSettings;
     private Boolean mergedSettings;
     private Boolean satelliteSettings;
+    private Uri imageUri;
+    private String imageFilePath;
 
     private static final int BUTTON_ADD = 0;
     private static final int BUTTON_DRAW = 1;
     private static final int BUTTON_DONE = 2;
 
     public static final int LOCATION_PERMISSION = 5;
+    public static final int CAPTURE_IMAGE = 1000;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -335,11 +349,28 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         final EditText placeEdit = dialogView.findViewById(R.id.dialog_place_edit);
         Button submitButton = dialogView.findViewById(R.id.dialog_place_submit);
         Button cancelButton = dialogView.findViewById(R.id.dialog_place_cancel);
+        ImageView captureImage = dialogView.findViewById(R.id.dialog_capture_image);
         description = "";
+        final String uniqueString = generateRandomString(8);
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setView(dialogView).setCancelable(false);
         final AlertDialog dialog = builder.create();
         dialog.show();
+        captureImage.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                cameraIntent.putExtra(MediaStore.EXTRA_SIZE_LIMIT, "262144");
+                String fileName = Constants.IMAGE_DATA_HEADER + phoneNumber + "_defaultMcs_" + uniqueString + Constants.JPEG_EXTENSION;
+                imageFilePath = Constants.CMS_IMAGES + fileName;
+                File image = Environment.getExternalStoragePublicDirectory(imageFilePath);
+                imageUri = FileProvider.getUriForFile(MainActivity.this, BuildConfig.APPLICATION_ID + ".provider", image);
+                cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
+                cameraIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+//                last_file_name = image.getName();
+                startActivityForResult(cameraIntent, CAPTURE_IMAGE);
+            }
+        });
         submitButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -351,12 +382,13 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                 KmlDocument kml = new KmlDocument();
                 setCurrentZoom();
                 String latLng = getLocation(MainActivity.this);
+                String file_name = "";
+                if (imageUri != null && !imageFilePath.equals(""))
+                    file_name = Constants.IMAGE_DATA_HEADER + phoneNumber + "_defaultMcs_" + uniqueString + Constants.KML_EXTENSION;
+                else
+                    file_name = Constants.TEXT_DATA_HEADER + phoneNumber + "_defaultMcs_" + uniqueString + Constants.KML_EXTENSION;
                 String timeStamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
-                String file_name = "TXT_50_data_" +
-                        phoneNumber +
-                        "_defaultMcs_"
-                        + latLng
-                        + "_" + timeStamp + ".kml";
+
                 if (polygonPoints.size() == 1) {
                     org.osmdroid.views.overlay.Marker marker = new org.osmdroid.views.overlay.Marker(mMapView);
                     marker.setSnippet(description);
@@ -395,6 +427,8 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                 kml.saveAsKML(tmpFile);
                 refreshData();
                 doneButtonHelper();
+                imageFilePath = "";
+                imageUri = null;
                 dialog.dismiss();
             }
         });
@@ -402,9 +436,24 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
             @Override
             public void onClick(View v) {
                 doneButtonHelper();
+                if (imageUri != null && !imageFilePath.equals("")) {
+                    File path = Environment.getExternalStoragePublicDirectory(imageFilePath);
+                    Storage storage = new Storage(MainActivity.this);
+                    storage.deleteFile(path.getAbsolutePath());
+                    imageFilePath = "";
+                    imageUri = null;
+                }
                 dialog.dismiss();
             }
         });
+    }
+
+
+    private String generateRandomString(int size) {
+        SecureRandom secureRandom = new SecureRandom();
+        byte[] token = new byte[size];
+        secureRandom.nextBytes(token);
+        return new BigInteger(1, token).toString(16);
     }
 
     private void setCurrentZoom() {
@@ -541,6 +590,8 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         mergedSettings = preferences.getBoolean(Constants.KEY_PREF_MERGED_FILES, false);
         satelliteSettings = preferences.getBoolean(Constants.KEY_PREF_SATELLITE_LAYER, false);
         mMapView = new org.osmdroid.views.MapView(MainActivity.this);
+        imageFilePath = "";
+        imageUri = null;
     }
 
     public void enableGPS() {
@@ -570,7 +621,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
     }
 
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == LOCATION_PERMISSION && resultCode == 0) {
+        if (requestCode == LOCATION_PERMISSION && resultCode == RESULT_OK) {
             String provider = Settings.Secure.getString(getContentResolver(), Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
             if (provider != null) {
                 switch (provider.length()) {
@@ -586,9 +637,32 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                         break;
                 }
             }
-        } else {
-            //the user did not enable his GPS
-            enableGPS();
+        } else if (requestCode == CAPTURE_IMAGE && resultCode == RESULT_OK) {
+            Bitmap bitmap = null;
+            try {
+                bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), imageUri);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            Bitmap resized = Bitmap.createScaledBitmap(bitmap, 450, 640, true);
+            FileOutputStream out = null;
+            File f = Environment.getExternalStoragePublicDirectory(imageFilePath);
+            try {
+                out = new FileOutputStream(f.getAbsoluteFile());
+                resized.compress(Bitmap.CompressFormat.JPEG, 100, out); // bmp is your Bitmap instance
+                // PNG is a lossless format, the compression factor (100) is ignored
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                try {
+                    if (out != null) {
+                        out.close();
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
@@ -724,7 +798,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                 for (DocumentChange snapshot : queryDocumentSnapshots.getDocumentChanges()) {
                     if (snapshot.getType() == DocumentChange.Type.ADDED) {
                         FileUploadModel modal = snapshot.getDocument().toObject(FileUploadModel.class);
-                        downloadFile(modal.getFileName());
+                        downloadFile(modal.getFileName(), modal.getImagePresent());
                     }
                 }
             }
@@ -946,7 +1020,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         thread.start();
     }
 
-    private void downloadFile(String fileName) {
+    private void downloadFile(String fileName, Boolean imagePresent) {
         File file = Environment.getExternalStoragePublicDirectory(Constants.CMS_DOWNLOADED_KML + fileName);
         StorageReference storage = FirebaseStorage.getInstance().getReference();
         StorageReference fileReference = storage.child(UploadJobService.FILES_CONST).child(fileName);
@@ -962,6 +1036,24 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                     Log.d("Download", "download failed");
                 }
             });
+        }
+        if (imagePresent) {
+            String imageFileName = FilenameUtils.removeExtension(fileName) + Constants.JPEG_EXTENSION;
+            File imageFile = Environment.getExternalStoragePublicDirectory(Constants.CMS_DOWNLOADED_IMAGES + imageFileName);
+            StorageReference imageReference = storage.child(UploadJobService.IMAGES_CONST).child(imageFileName);
+            if (!imageFile.exists()) {
+                imageReference.getFile(imageFile).addOnSuccessListener(new OnSuccessListener<FileDownloadTask.TaskSnapshot>() {
+                    @Override
+                    public void onSuccess(FileDownloadTask.TaskSnapshot taskSnapshot) {
+                        Log.d("Download", "image file downloaded");
+                    }
+                }).addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.d("Download", "image download failed");
+                    }
+                });
+            }
         }
     }
 }

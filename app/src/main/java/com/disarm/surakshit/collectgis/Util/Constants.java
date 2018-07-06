@@ -9,6 +9,8 @@ public class Constants {
     public static final String REPORT_DIRECTORY = "CMS/Reports/";
     public static final String CMS_WORKING = "CMS/Working/";
     public static final String CMS_DOWNLOADED_KML = "CMS/DownloadedKml/";
+    public static final String CMS_DOWNLOADED_IMAGES = "CMS/DownloadedImages/";
+    public static final String CMS_IMAGES = "CMS/Images/";
     public static final String CMS_TAGGED_KML = "CMS/TaggedKml/";
     public static final String CMS_MERGED_KML = "CMS/MergedKml/";
     public static final String CMS_GROUND_TRUTH_KML = "CMS/GroundTruthKml/";
@@ -19,4 +21,8 @@ public class Constants {
     public static final String KEY_PREF_MERGED_FILES = "merged_files";
     public static final String KEY_PREF_SATELLITE_LAYER = "satellite_layer";
     public static final String EXTENDED_DATA_TAG = "TAG";
+    public static final String KML_EXTENSION = ".kml";
+    public static final String JPEG_EXTENSION = ".jpeg";
+    public static final String TEXT_DATA_HEADER = "TXT_50_data_";
+    public static final String IMAGE_DATA_HEADER = "IMG_50_data_";
 }

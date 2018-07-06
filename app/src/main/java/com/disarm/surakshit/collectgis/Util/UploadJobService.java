@@ -18,6 +18,8 @@ import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 import com.snatik.storage.Storage;
 
+import org.apache.commons.io.FilenameUtils;
+
 import java.io.File;
 
 
@@ -30,6 +32,7 @@ public class UploadJobService extends JobService {
     private FirebaseFirestore firestore;
     private String phoneNumber;
     public static final String FILES_CONST = "Kml_Files";
+    public static final String IMAGES_CONST = "Images";
 
     @Override
     public boolean onStartJob(JobParameters job) {
@@ -67,6 +70,8 @@ public class UploadJobService extends JobService {
 
     private void saveToFirebase(final String file_name) {
         File fileToUpload = Environment.getExternalStoragePublicDirectory(Constants.CMS_TEMP_KML + file_name);
+        final String fileBase = FilenameUtils.removeExtension(file_name);
+        final File imageToUpload = Environment.getExternalStoragePublicDirectory(Constants.CMS_IMAGES + fileBase + Constants.JPEG_EXTENSION);
         StorageReference fileRef = mStorageRef.child(FILES_CONST).child(fileToUpload.getName());
         if (fileToUpload.exists()) {
             Uri fileUri = Uri.fromFile(fileToUpload);
@@ -76,7 +81,20 @@ public class UploadJobService extends JobService {
                 public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
                     Log.d("Upload Test", "Upload Successful");
                     //update in firestore
-                    FileUploadModel fileUploadModal = new FileUploadModel(phoneNumber, file_name);
+                    FileUploadModel fileUploadModal;
+                    if (imageToUpload.exists()) {
+                        fileUploadModal = new FileUploadModel(phoneNumber, file_name, true);
+                        StorageReference imageRef = mStorageRef.child(IMAGES_CONST).child(fileBase + Constants.JPEG_EXTENSION);
+                        Uri imageUri = Uri.fromFile(imageToUpload);
+                        UploadTask imageUploadTask = imageRef.putFile(imageUri);
+                        imageUploadTask.addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                            @Override
+                            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                                Log.d("Upload Test", "Image Upload Successful");
+                            }
+                        });
+                    } else
+                        fileUploadModal = new FileUploadModel(phoneNumber, file_name, false);
                     firestore.collection(FILES_CONST).add(fileUploadModal);
                     //delete saved file from tmpKML
                     File tempFile = Environment.getExternalStoragePublicDirectory(Constants.CMS_TEMP_KML + file_name);
