@@ -833,7 +833,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                 File folder = Environment.getExternalStoragePublicDirectory(Constants.CMS_TAGGED_KML);
                 if (folder.exists() && folder.listFiles().length > 0) {
                     showToastMessage("Merging GIS..");
-                    MergeDecisionPolicy mergeDecisionPolicy = new MergeDecisionPolicy(MergeDecisionPolicy.TFIDF_THRESHOLD_POLICY, 0, 0);
+                    MergeDecisionPolicy mergeDecisionPolicy = new MergeDecisionPolicy(MergeDecisionPolicy.DISTANCE_AND_TFIDF_THRESHOLD_POLICY, 40, 0.45);
                     int total = GISMerger.mergeGIS(mMapView, mergeDecisionPolicy);
                     Log.d("Merged Files:", "" + total);
                 } else

@@ -36,7 +36,7 @@ public class SplashActivity extends AppCompatActivity {
             Manifest.permission.INTERNET,
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
-            Manifest.permission.READ_EXTERNAL_STORAGE,};
+            Manifest.permission.READ_EXTERNAL_STORAGE};
 
     public static final int REQUEST_CODE_REQUIRED_PERMISSIONS = 1;
 
