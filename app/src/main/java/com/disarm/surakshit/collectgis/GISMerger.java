@@ -193,6 +193,24 @@ public class GISMerger {
         return hDistance2;
     }
 
+    //Find internal max distance in a polygon
+    public static double internalDistance(KmlObject object) {
+        double hDistance = Double.MIN_VALUE;
+        for (LatLng latLng1 : object.getPoints()) {
+            double maxd = Double.MIN_VALUE;
+            for (LatLng latLng2 : object.getPoints()) {
+                if (latLng1 != latLng2) {
+                    Log.d("Internal Distance:", "LatLng1:" + latLng1.getLatitude() + " LatLong2:" + latLng2.getLatitude());
+                    double d = distance(latLng1.getLatitude(), latLng2.getLatitude(), latLng1.getLongitude(), latLng2.getLongitude(), latLng1.getAltitude(), latLng2.getAltitude());
+                    maxd = Math.max(maxd, d);
+                }
+            }
+            hDistance = Math.max(hDistance, maxd);
+        }
+        Log.d("Object:" + object.getTag(), "Distance:" + hDistance + "m");
+        return hDistance;
+    }
+
     //Method to form KMLObject from values
     //returns a kmlObject
     public static KmlObject getKMLObject(String sourceId, String message, List<LatLng> polyPoints, int type, File kmlFile) {

@@ -1,5 +1,6 @@
 package com.disarm.surakshit.collectgis;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -678,7 +679,6 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
 
     public String getLocation(Context context) {
         Location l = MLocation.getLocation(context);
-        Location location = locationEngine.getLastLocation();
         String lat_long = null;
         if (l != null) {
             double lat = l.getLatitude();
@@ -692,6 +692,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         return lat_long;
     }
 
+    @SuppressLint("MissingPermission")
     @Override
     protected void onStart() {
         super.onStart();
@@ -746,6 +747,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         }
     }
 
+    @SuppressLint("MissingPermission")
     @Override
     public void onConnected() {
         locationEngine.requestLocationUpdates();
@@ -845,7 +847,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                 return true;
             case R.id.menu_evaluate_gis:
                 showToastMessage("Automate");
-                automateMergeTFixed();
+                automateMergeTFIDF();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -902,6 +904,13 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                     totalHausdorffDistance += distance;
                     totalKMLFiles += 1;
                 }
+            }
+            //Add penalty for files that have not merged
+            else {
+                double internalDistance = GISMerger.internalDistance(tagToGroundTruth.get(tag));
+                totalHausdorffDistance += internalDistance;
+                hausdorffDistances.add(internalDistance);
+                totalKMLFiles += 1;
             }
         }
         meanHausdorffDistance = totalHausdorffDistance / totalKMLFiles;
@@ -1005,7 +1014,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
 
     //merge wrt to Hausdorff Distance
     private void automateMergeHausdorff() {
-        final String fileName = "Hausdorff Policy 3" + ".txt";
+        final String fileName = "Hausdorff Policy" + ".txt";
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
