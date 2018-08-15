@@ -10,6 +10,7 @@
     <string name="enable_gps">Turn on</string>
     <string name="switch_title">Show Downloaded Kml</string>
     <string name="switch_summary">Show and download online KML files</string>
+    <string name="object_type">Object Type</string>
 
     <string-array name="categories">
         <item>Hall Of Residence</item>
@@ -17,6 +18,15 @@
         <item>Place To Eat</item>
         <item>Landmarks</item>
         <item>Main POI</item>
+    </string-array>
+
+    <string-array name="object_classification">
+        <item>Select Object Type</item>
+        <item>Buildings</item>
+        <item>Ground</item>
+        <item>Point Objects</item>
+        <item>Water Area</item>
+        <item>Road</item>
     </string-array>
 
     <string-array name="hall_of_residence">

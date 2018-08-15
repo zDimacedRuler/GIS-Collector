@@ -50,6 +50,7 @@ public class GISMerger {
             if (kmlFile.getName().contains("kml")) {
                 kml.parseKMLFile(kmlFile);
                 String tag = kml.mKmlRoot.getExtendedData(Constants.EXTENDED_DATA_TAG);
+                String objectType = kml.mKmlRoot.getExtendedData("Object Type");
                 final FolderOverlay kmlOverlay = (FolderOverlay) kml.mKmlRoot.buildOverlay(mapView, null, null, kml);
                 for (int i = 0; i < kmlOverlay.getItems().size(); i++) {
                     if (kmlOverlay.getItems().get(i) instanceof org.osmdroid.views.overlay.Polygon) {
@@ -57,6 +58,7 @@ public class GISMerger {
                         String message = ((org.osmdroid.views.overlay.Polygon) kmlOverlay.getItems().get(i)).getSnippet();
                         KmlObject kmlObject = getKMLObject(sourceid, message, polyPoints, KmlObject.KMLOBJECT_TYPE_POLYGON, kmlFile);
                         kmlObject.setTag(tag);
+                        kmlObject.setObjectType(objectType);
                         kmlObjects.add(kmlObject);
 
                     } else if (kmlOverlay.getItems().get(i) instanceof org.osmdroid.views.overlay.Marker) {
@@ -231,6 +233,7 @@ public class GISMerger {
         kml.parseKMLFile(file);
         KmlObject kmlObject = new KmlObject();
         String tag = kml.mKmlRoot.getExtendedData(Constants.EXTENDED_DATA_TAG);
+        String objectType = kml.mKmlRoot.getExtendedData("Object Type");
         FolderOverlay kmlOverlay = (FolderOverlay) kml.mKmlRoot.buildOverlay(mapView, null, null, kml);
         for (int i = 0; i < kmlOverlay.getItems().size(); i++) {
             if (kmlOverlay.getItems().get(i) instanceof org.osmdroid.views.overlay.Polygon) {
@@ -247,6 +250,7 @@ public class GISMerger {
             }
         }
         kmlObject.setTag(tag);
+        kmlObject.setObjectType(objectType);
         return kmlObject;
     }
 

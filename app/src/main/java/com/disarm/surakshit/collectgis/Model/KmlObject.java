@@ -18,7 +18,15 @@ public class KmlObject {
     private String source;
     private File file;
     private String tag;
+    private String objectType;
 
+    public String getObjectType() {
+        return objectType;
+    }
+
+    public void setObjectType(String objectType) {
+        this.objectType = objectType;
+    }
 
     public static final int KMLOBJECT_TYPE_POLYGON = 0;
     public static final int KMLOBJECT_TYPE_MARKER = 1;

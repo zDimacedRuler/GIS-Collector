@@ -25,6 +25,7 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -105,6 +106,8 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
+import fr.ganfra.materialspinner.MaterialSpinner;
+
 public class MainActivity extends AppCompatActivity implements LocationEngineListener, MapboxMap.OnCameraIdleListener, MapboxMap.OnCameraMoveListener, MapboxMap.OnCameraMoveStartedListener {
     private MapView mapView;
     private FloatingActionButton addButton;
@@ -115,6 +118,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
     private ArrayList<LatLng> polygonPoints;
     private BasePointCollection currentPolygon;
     private String description;
+    private String objectType;
     private String phoneNumber;
     private Double currentZoom;
     private HashMap<String, Boolean> allPlottedKml;
@@ -307,14 +311,11 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                     addButton.setImageResource(R.drawable.ic_draw_white_24dp);
                     addFlag = BUTTON_DRAW;
                     //remove current polygon
-                    mapView.getMapAsync(new OnMapReadyCallback() {
-                        @Override
-                        public void onMapReady(MapboxMap mapboxMap) {
-                            if (currentPolygon instanceof Polygon)
-                                mapboxMap.removePolygon((Polygon) currentPolygon);
-                            else if (currentPolygon instanceof Polyline)
-                                mapboxMap.removePolyline((Polyline) currentPolygon);
-                        }
+                    mapView.getMapAsync(mapboxMap -> {
+                        if (currentPolygon instanceof Polygon)
+                            mapboxMap.removePolygon((Polygon) currentPolygon);
+                        else if (currentPolygon instanceof Polyline)
+                            mapboxMap.removePolyline((Polyline) currentPolygon);
                     });
                 }
             }
@@ -360,7 +361,13 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         Button submitButton = dialogView.findViewById(R.id.dialog_place_submit);
         Button cancelButton = dialogView.findViewById(R.id.dialog_place_cancel);
         ImageView captureImage = dialogView.findViewById(R.id.dialog_capture_image);
+        MaterialSpinner spinner = dialogView.findViewById(R.id.dialog_place_classify_spinner);
+        String[] classificationArray = getResources().getStringArray(R.array.object_classification);
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, classificationArray);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
         description = "";
+        objectType = "";
         final String uniqueString = generateRandomString(8);
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setView(dialogView).setCancelable(false);
@@ -385,8 +392,13 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
             @Override
             public void onClick(View v) {
                 description = placeEdit.getText().toString();
+                objectType = classificationArray[spinner.getSelectedItemPosition()];
                 if (description.equals("")) {
                     placeEdit.setError("Please provide the name");
+                    return;
+                }
+                if (objectType.equals(classificationArray[0])) {
+                    spinner.setError("Please select object type");
                     return;
                 }
                 KmlDocument kml = new KmlDocument();
@@ -405,7 +417,6 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                     marker.setPosition(ConversionUtil.getGeoPoint(polygonPoints.get(0)));
                     KmlPlacemark placemark = new KmlPlacemark(marker);
                     kml.mKmlRoot.add(placemark);
-                    kml.mKmlRoot.setExtendedData("Media Type", "TXT");
                     kml.mKmlRoot.setExtendedData("Group Type", "data");
                     kml.mKmlRoot.setExtendedData("Time Stamp", timeStamp);
                     kml.mKmlRoot.setExtendedData("Source", phoneNumber);
@@ -413,13 +424,13 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                     kml.mKmlRoot.setExtendedData("Lat Long", latLng);
                     kml.mKmlRoot.setExtendedData("Group ID", "1");
                     kml.mKmlRoot.setExtendedData("Priority", "50");
+                    kml.mKmlRoot.setExtendedData("Object Type", objectType);
                     kml.mKmlRoot.setExtendedData("Zoom", currentZoom.toString());
                     kml.mKmlRoot.setExtendedData("KML Type", "Point");
                 } else if (polygonPoints.size() > 1) {
                     org.osmdroid.views.overlay.Polygon polygon = new org.osmdroid.views.overlay.Polygon();
                     polygon.setPoints(ConversionUtil.getGeoPointList(polygonPoints));
                     polygon.setSnippet(description);
-                    kml.mKmlRoot.setExtendedData("Media Type", "TXT");
                     kml.mKmlRoot.setExtendedData("Group Type", "data");
                     kml.mKmlRoot.setExtendedData("Time Stamp", timeStamp);
                     kml.mKmlRoot.setExtendedData("Source", phoneNumber);
@@ -427,6 +438,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                     kml.mKmlRoot.setExtendedData("Lat Long", latLng);
                     kml.mKmlRoot.setExtendedData("Group ID", "1");
                     kml.mKmlRoot.setExtendedData("Priority", "50");
+                    kml.mKmlRoot.setExtendedData("Object Type", objectType);
                     kml.mKmlRoot.setExtendedData("Zoom", currentZoom.toString());
                     kml.mKmlRoot.setExtendedData("KML Type", "Polygon");
                     kml.mKmlRoot.addOverlay(polygon, kml);
@@ -895,22 +907,27 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         double stdvHausdorffDistance = 0;
         for (String tag : tagToGroundTruth.keySet()) {
             Log.d("Tag", tagToGroundTruth.get(tag).toString());
-            List<KmlObject> objects = tagToMerge.get(tag);
-            if (objects != null) {
-                for (KmlObject mergeObject : objects) {
-                    double distance = GISMerger.housedorffDistance(tagToGroundTruth.get(tag), mergeObject);
-                    Log.d("Comparing", tag);
-                    hausdorffDistances.add(distance);
-                    totalHausdorffDistance += distance;
+            //classifying according to objectTypes
+            String objectType = tagToGroundTruth.get(tag).getObjectType();
+            if (objectType.equals("Buildings")) {
+
+                List<KmlObject> objects = tagToMerge.get(tag);
+                if (objects != null) {
+                    for (KmlObject mergeObject : objects) {
+                        double distance = GISMerger.housedorffDistance(tagToGroundTruth.get(tag), mergeObject);
+                        Log.d("ObjectType", objectType + " " +tag);
+                        hausdorffDistances.add(distance);
+                        totalHausdorffDistance += distance;
+                        totalKMLFiles += 1;
+                    }
+                }
+                //Add penalty for files that have not merged
+                else {
+                    double internalDistance = GISMerger.internalDistance(tagToGroundTruth.get(tag));
+                    totalHausdorffDistance += internalDistance;
+                    hausdorffDistances.add(internalDistance);
                     totalKMLFiles += 1;
                 }
-            }
-            //Add penalty for files that have not merged
-            else {
-                double internalDistance = GISMerger.internalDistance(tagToGroundTruth.get(tag));
-                totalHausdorffDistance += internalDistance;
-                hausdorffDistances.add(internalDistance);
-                totalKMLFiles += 1;
             }
         }
         meanHausdorffDistance = totalHausdorffDistance / totalKMLFiles;
@@ -919,6 +936,8 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         }
         stdvHausdorffDistance = stdvHausdorffDistance / totalKMLFiles;
         stdvHausdorffDistance = Math.sqrt(stdvHausdorffDistance);
+        Log.d("TotalHD", "" + totalHausdorffDistance);
+        Log.d("TotalHDFiles", "" + totalKMLFiles);
         Log.d("stdvHD", "" + stdvHausdorffDistance);
         Log.d("meanHD", "" + meanHausdorffDistance);
         return String.valueOf(meanHausdorffDistance) + "," + String.valueOf(stdvHausdorffDistance);
@@ -926,7 +945,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
 
     //merge wrt to TFIDF Distance
     private void automateMergeTFIDF() {
-        final String fileName = "TFIDF policy" + ".txt";
+        final String fileName = "Buildings TFIDF policy" + ".txt";
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -1014,7 +1033,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
 
     //merge wrt to Hausdorff Distance
     private void automateMergeHausdorff() {
-        final String fileName = "Hausdorff Policy" + ".txt";
+        final String fileName = "Ground Hausdorff Policy" + ".txt";
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
