@@ -19,6 +19,7 @@ public class KmlObject {
     private File file;
     private String tag;
     private String objectType;
+    private double distanceFromMarker;
 
     public String getObjectType() {
         return objectType;
@@ -111,5 +112,13 @@ public class KmlObject {
 
     public void setPoints(List<LatLng> points) {
         this.points = points;
+    }
+
+    public double getDistanceFromMarker() {
+        return distanceFromMarker;
+    }
+
+    public void setDistanceFromMarker(double distanceFromMarker) {
+        this.distanceFromMarker = distanceFromMarker;
     }
 }

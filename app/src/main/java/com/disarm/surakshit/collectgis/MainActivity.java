@@ -29,6 +29,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import com.disarm.surakshit.collectgis.Model.FileUploadModel;
@@ -100,6 +101,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -859,10 +861,78 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                 return true;
             case R.id.menu_evaluate_gis:
                 showToastMessage("Automate");
-                automateMergeTFIDF();
+//                automateMergeTFIDF();
+                evaluateGISDistanceFromMarker();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
+        }
+    }
+
+    private void evaluateGISDistanceFromMarker() {
+        File groundTruthFolder = Environment.getExternalStoragePublicDirectory(Constants.CMS_GROUND_TRUTH_KML);
+        File taggedKMLFolder = Environment.getExternalStoragePublicDirectory(Constants.CMS_TAGGED_KML);
+        final String fileName = "Distance from marker" + ".txt";
+        if (!groundTruthFolder.exists()) {
+            showToastMessage("Ground truth folder does not exist");
+            return;
+        }
+        if (!taggedKMLFolder.exists()) {
+            showToastMessage("Tagged Kml folder does not exist");
+            return;
+        }
+        Map<String, KmlObject> tagToGroundTruth = new HashMap<>();
+        Map<String, List<KmlObject>> tagToTaggedKML = new HashMap<>();
+        Map<Double, List<Double>> dfmToHD = new LinkedHashMap<>();
+        for (double i = 0; i <= 200; i += 10)
+            dfmToHD.put(i, new ArrayList<>());
+
+        for (File file : groundTruthFolder.listFiles()) {
+            KmlObject kmlObject = GISMerger.getTaggedKMlObject(file, mMapView);
+            tagToGroundTruth.put(kmlObject.getTag(), kmlObject);
+        }
+
+        for (File file : taggedKMLFolder.listFiles()) {
+            KmlObject kmlObject = GISMerger.getTaggedKMlObject(file, mMapView);
+            if (!tagToTaggedKML.containsKey(kmlObject.getTag()))
+                tagToTaggedKML.put(kmlObject.getTag(), new ArrayList<>());
+            tagToTaggedKML.get(kmlObject.getTag()).add(kmlObject);
+        }
+        int count = 0;
+        for (String tag : tagToGroundTruth.keySet()) {
+            Log.d("Tag", tagToGroundTruth.get(tag).toString());
+
+            List<KmlObject> objects = tagToTaggedKML.get(tag);
+            if (objects != null) {
+                for (KmlObject object : objects) {
+                    double hd = GISMerger.housedorffDistance(tagToGroundTruth.get(tag), object);
+                    if (hd == Double.MIN_VALUE) {
+                        count++;
+                        continue;
+                    }
+                    double number = Math.round((object.getDistanceFromMarker() + 5) / 10.0) * 10.0;
+                    dfmToHD.get(number).add(hd);
+                    Log.d("DFM:"+ object.getDistanceFromMarker() , " rounded:" + number+" hd:"+hd);
+                }
+            }
+        }
+        for (double d : dfmToHD.keySet()) {
+            List<Double> hds = dfmToHD.get(d);
+            if (hds != null) {
+                double meanhd = 0;
+                int i = 0;
+                for (double hd : hds) {
+                    meanhd += hd;
+                    i++;
+                }
+                if (i != 0)
+                    meanhd = meanhd / i;
+                else
+                    meanhd = 0;
+                Log.d("DFM:" + d, "mean hd:" + meanhd);
+                String log = d + "," + meanhd;
+                ReportGenerator.generateReport(log, fileName);
+            }
         }
     }
 
@@ -915,7 +985,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                 if (objects != null) {
                     for (KmlObject mergeObject : objects) {
                         double distance = GISMerger.housedorffDistance(tagToGroundTruth.get(tag), mergeObject);
-                        Log.d("ObjectType", objectType + " " +tag);
+                        Log.d("ObjectType", objectType + " " + tag);
                         hausdorffDistances.add(distance);
                         totalHausdorffDistance += distance;
                         totalKMLFiles += 1;

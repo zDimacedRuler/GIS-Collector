@@ -51,6 +51,15 @@ public class GISMerger {
                 kml.parseKMLFile(kmlFile);
                 String tag = kml.mKmlRoot.getExtendedData(Constants.EXTENDED_DATA_TAG);
                 String objectType = kml.mKmlRoot.getExtendedData("Object Type");
+                String latLongVal = kml.mKmlRoot.getExtendedData("Lat Long");
+                LatLng latLng = new LatLng();
+                if (latLongVal == null) {
+                    continue;
+                }
+                String latLongString[] = latLongVal.split("_");
+                Log.d("DFM", "Lat long :" + Arrays.toString(latLongString));
+                latLng.setLatitude(Double.parseDouble(latLongString[0]));
+                latLng.setLongitude(Double.parseDouble(latLongString[1]));
                 final FolderOverlay kmlOverlay = (FolderOverlay) kml.mKmlRoot.buildOverlay(mapView, null, null, kml);
                 for (int i = 0; i < kmlOverlay.getItems().size(); i++) {
                     if (kmlOverlay.getItems().get(i) instanceof org.osmdroid.views.overlay.Polygon) {
@@ -58,6 +67,7 @@ public class GISMerger {
                         String message = ((org.osmdroid.views.overlay.Polygon) kmlOverlay.getItems().get(i)).getSnippet();
                         KmlObject kmlObject = getKMLObject(sourceid, message, polyPoints, KmlObject.KMLOBJECT_TYPE_POLYGON, kmlFile);
                         kmlObject.setTag(tag);
+                        kmlObject.setDistanceFromMarker(findDistanceFromMarker(polyPoints, latLng));
                         kmlObject.setObjectType(objectType);
                         kmlObjects.add(kmlObject);
 
@@ -234,18 +244,29 @@ public class GISMerger {
         KmlObject kmlObject = new KmlObject();
         String tag = kml.mKmlRoot.getExtendedData(Constants.EXTENDED_DATA_TAG);
         String objectType = kml.mKmlRoot.getExtendedData("Object Type");
+        String latLongVal = kml.mKmlRoot.getExtendedData("Lat Long");
+        LatLng latLng = new LatLng();
+        if (latLongVal != null) {
+            String latLongString[] = latLongVal.split("_");
+            latLng.setLatitude(Double.parseDouble(latLongString[0]));
+            latLng.setLongitude(Double.parseDouble(latLongString[1]));
+        }
         FolderOverlay kmlOverlay = (FolderOverlay) kml.mKmlRoot.buildOverlay(mapView, null, null, kml);
         for (int i = 0; i < kmlOverlay.getItems().size(); i++) {
             if (kmlOverlay.getItems().get(i) instanceof org.osmdroid.views.overlay.Polygon) {
                 List<LatLng> polyPoints = ConversionUtil.getLatLngList(((org.osmdroid.views.overlay.Polygon) kmlOverlay.getItems().get(i)).getPoints());
                 String message = ((org.osmdroid.views.overlay.Polygon) kmlOverlay.getItems().get(i)).getSnippet();
                 kmlObject = getKMLObject(sourceid, message, polyPoints, KmlObject.KMLOBJECT_TYPE_POLYGON, file);
+                if (latLongVal != null)
+                    kmlObject.setDistanceFromMarker(findDistanceFromMarker(polyPoints, latLng));
 
             } else if (kmlOverlay.getItems().get(i) instanceof org.osmdroid.views.overlay.Marker) {
                 LatLng point = ConversionUtil.getLatLng(((org.osmdroid.views.overlay.Marker) kmlOverlay.getItems().get(i)).getPosition());
                 String message = ((org.osmdroid.views.overlay.Marker) kmlOverlay.getItems().get(i)).getSnippet();
                 List<LatLng> pointList = new ArrayList<>();
                 pointList.add(point);
+                if (latLongVal != null)
+                    kmlObject.setDistanceFromMarker(findDistanceFromMarker(pointList, latLng));
                 kmlObject = getKMLObject(sourceid, message, pointList, KmlObject.KMLOBJECT_TYPE_MARKER, file);
             }
         }
@@ -341,6 +362,18 @@ public class GISMerger {
         distance = Math.pow(distance, 2) + Math.pow(height, 2);
 
         return Math.sqrt(distance);
+    }
+
+    //minimum distance between polygon and user
+    private static double findDistanceFromMarker(List<LatLng> polyPoints, LatLng latLng) {
+        double minDistance = Double.MAX_VALUE;
+        for (LatLng point : polyPoints) {
+            double dist = distance(point.getLatitude(), latLng.getLatitude(), point.getLongitude(), latLng.getLongitude(), 0, 0);
+            if (dist < minDistance)
+                minDistance = dist;
+        }
+        Log.d("DFM", "Distance:" + minDistance);
+        return minDistance;
     }
 
     private static File saveKMlInFile(KmlObject kmlObject) {
